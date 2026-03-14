@@ -1,0 +1,23 @@
+# CLion / IntelliJ
+.idea/
+Extensions/
+
+# CMake builds
+cmake-build-*/
+build/
+
+#CMake files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Executables
+*.exe
+*.out
+*.app
