@@ -1,0 +1,4 @@
+C:/dev/FileSearch/build/CMakeFiles/fileindex_core.dir
+C:/dev/FileSearch/build/CMakeFiles/index.dir
+C:/dev/FileSearch/build/CMakeFiles/ALL_BUILD.dir
+C:/dev/FileSearch/build/CMakeFiles/ZERO_CHECK.dir

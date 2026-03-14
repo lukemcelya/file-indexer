@@ -1,0 +1,6 @@
+C:\dev\FileSearch\src\IndexApp.cpp;C:\dev\FileSearch\build\fileindex_core.dir\Debug\IndexApp.obj
+C:\dev\FileSearch\src\Cli.cpp;C:\dev\FileSearch\build\fileindex_core.dir\Debug\Cli.obj
+C:\dev\FileSearch\src\Index.cpp;C:\dev\FileSearch\build\fileindex_core.dir\Debug\Index.obj
+C:\dev\FileSearch\src\Database.cpp;C:\dev\FileSearch\build\fileindex_core.dir\Debug\Database.obj
+C:\dev\FileSearch\external\sqlite\sqlite3.c;C:\dev\FileSearch\build\fileindex_core.dir\Debug\sqlite3.obj
+C:\dev\FileSearch\src\Scanner.cpp;C:\dev\FileSearch\build\fileindex_core.dir\Debug\Scanner.obj

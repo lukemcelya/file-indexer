@@ -1,0 +1,10 @@
+^C:\DEV\FILESEARCH\BUILD\CMAKEFILES\A9770CCC210EA61F5CD837818BE91342\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/dev/FileSearch -BC:/dev/FileSearch/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/dev/FileSearch/build/FileIndex.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
