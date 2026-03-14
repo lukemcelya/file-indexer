@@ -13,7 +13,7 @@ class IndexApp
 {
   using IndexStore = std::vector<Index>;
 private:
-  db::Database m_database;
+  Database m_database;
   IndexStore m_indexStore;
 
 public:

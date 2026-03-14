@@ -1,5 +1,6 @@
 #include "Cli.h"
 #include "IndexApp.h"
+#include "Database.h"
 
 #include <filesystem>
 #include <iostream>
@@ -28,7 +29,7 @@ int Cli::run(const int argc, const char* argv[])
   return rc;
 }
 
-void Cli::printError(std::string_view error)
+void Cli::printError(const Database::Error& error)
 {
   std::cerr << error << "\n";
 }

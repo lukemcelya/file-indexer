@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <expected>
+#include <chrono>
 
 Database::Database(const std::string& dbPath)
 {
@@ -35,69 +36,84 @@ bool Database::exec(std::string_view query)
   return true;
 }
 
-std::expected<std::int64_t, std::string> Database::saveIndex(const Index& index, const std::vector<Entry>&  entries)
+void Database::beginTransaction()
 {
-  sqlite3_stmt* stmt;
+  exec("BEGIN TRANSACTION;");
+}
 
+void Database::commit()
+{
+  exec("COMMIT;");
+}
+
+auto Database::insertIndex(const Index& index) -> std::expected<std::int64_t, Error>
+{
   sqlite3_prepare_v2(
     m_db,
     "INSERT INTO indexes (root_path, created_at, last_scanned_at) VALUES (?, ?, ?);",
     -1,
-    &stmt,
+    &m_stmt,
     nullptr
     );
 
-  sqlite3_bind_text(stmt, 1, index.root().string().c_str(), -1 , SQLITE_TRANSIENT);
-  sqlite3_bind_int64(stmt, 2, index.createdAt());
-  sqlite3_bind_int64(stmt, 3, index.lastScannedAt());
+  sqlite3_bind_text(m_stmt, 1, index.root().string().c_str(), -1 , SQLITE_TRANSIENT);
+  sqlite3_bind_int64(m_stmt, 2, index.createdAt());
+  sqlite3_bind_int64(m_stmt, 3, index.lastScannedAt());
 
-  if (sqlite3_step(stmt) != SQLITE_DONE)
+  if (sqlite3_step(m_stmt) != SQLITE_DONE)
   {
-    sqlite3_finalize(stmt);
-    return std::unexpected("Could not insert index");
+    sqlite3_finalize(m_stmt);
+    return std::unexpected(Error{
+    sqlite3_errcode(m_db),
+    sqlite3_errmsg(m_db)
+    });
   }
 
   const sqlite3_int64 indexId = sqlite3_last_insert_rowid(m_db);
 
-  sqlite3_finalize(stmt);
+  sqlite3_finalize(m_stmt);
 
-  if (entries.empty())
-    return indexId;
+  return indexId;
+}
 
-  exec("BEGIN TRANSACTION;");
-
+void Database::prepareEntryInsert()
+{
   sqlite3_prepare_v2(
     m_db,
     "INSERT INTO entries (index_id, full_path, name, extension, is_directory, size_bytes, last_written_at) VALUES (?, ?, ?, ?, ?, ?, ?);",
     -1,
-    &stmt,
+    &m_stmt,
     nullptr);
+}
 
-  for (const auto& [path, name, extension, type,
-    size, lastWrittenAt] : entries)
+auto Database::insertEntry(std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
+{
+  sqlite3_bind_int64(m_stmt, 1, indexId);
+  sqlite3_bind_text(m_stmt, 2, entry.path.string().c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(m_stmt, 3, entry.name.string().c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(m_stmt, 4, entry.extension.string().c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int64(m_stmt, 5, static_cast<std::int64_t>(entry.type)); // Cast enum to int
+  sqlite3_bind_int64(m_stmt, 6, static_cast<std::int64_t>(entry.size));
+  sqlite3_bind_int64(m_stmt, 7, toUnixTime(entry.lastWrittenAt));
+
+  if (sqlite3_step(m_stmt) != SQLITE_DONE)
   {
-    sqlite3_bind_int64(stmt, 1, indexId);
-    sqlite3_bind_text(stmt, 2, path.string().c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 3, name.string().c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 4, extension.string().c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int64(stmt, 5, static_cast<std::int64_t>(type)); // Cast enum to int
-    sqlite3_bind_int64(stmt, 6, static_cast<std::int64_t>(size));
-    sqlite3_bind_int64(stmt, 7, toUnixTime(lastWrittenAt));
-
-    if (sqlite3_step(stmt) != SQLITE_DONE)
-    {
-      sqlite3_finalize(stmt);
-      return std::unexpected("Could not insert entries");
-    }
-
-    sqlite3_reset(stmt);
-    sqlite3_clear_bindings(stmt);
+    sqlite3_finalize(m_stmt);
+    return std::unexpected(Error{
+      sqlite3_errcode(m_db),
+        sqlite3_errmsg(m_db)
+    });
   }
 
-  sqlite3_finalize(stmt);
-  exec("COMMIT;");
+  sqlite3_reset(m_stmt);
+  sqlite3_clear_bindings(m_stmt);
 
-  return indexId;
+  return {};
+}
+
+void Database::finalizeEntryInsert()
+{
+  sqlite3_finalize(m_stmt);
 }
 
 std::vector<Index> Database::loadIndexes()

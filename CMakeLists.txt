@@ -11,7 +11,6 @@ add_library(fileindex_core
         src/Index.cpp
         src/Database.cpp
         external/sqlite/sqlite3.c
-        src/Scanner.cpp
 )
 
 target_include_directories(fileindex_core PUBLIC

@@ -10,8 +10,21 @@
 
 class Database
 {
+public:
+  struct Error
+  {
+    int code{};
+    std::string message;
+
+    friend std::ostream& operator<<(std::ostream& os, const Error& e)
+    {
+      return os << "SQLite error (" << e.code << "): " << e.message;
+    }
+  };
+
 private:
   sqlite3* m_db = nullptr;
+  sqlite3_stmt* m_stmt{};
 
 public:
   Database() : Database("indexes.db") {};
@@ -19,7 +32,13 @@ public:
   ~Database();
 
   bool exec(std::string_view query);
-  std::expected<std::int64_t, std::string> saveIndex(const Index& index, const std::vector<Entry>& entries);
+  void beginTransaction();
+  void commit();
+
+  std::expected<std::int64_t, Error> insertIndex(const Index& index);
+  void prepareEntryInsert();
+  std::expected<void, Error> insertEntry(std::int64_t indexId, const Entry& entry);
+  void finalizeEntryInsert();
   std::vector<Index> loadIndexes();
 
 private:

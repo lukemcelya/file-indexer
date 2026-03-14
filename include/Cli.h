@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IndexApp.h"
+#include "Database.h"
 
 #include <string>
 
@@ -14,7 +15,7 @@ public:
 
   int run(int argc, const char* argv[]);
 
-  static void printError(std::string_view error);
+  static void printError(const Database::Error& error);
 
 private:
   int handleCommand(const std::vector<std::string>& args);

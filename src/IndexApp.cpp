@@ -35,19 +35,33 @@ bool IndexApp::createIndex(const fs::path& path)
   if (!isValidPath(indexPath))
     return false;
 
+  m_database.beginTransaction();
+
   Index index { indexPath };
-
-  const std::vector<Entry> entries = scanner::scan(path);
-
-  auto indexId = m_database.saveIndex(index, entries);
+  auto indexId = m_database.insertIndex(index);
 
   if (!indexId)
   {
-    Cli::printError(indexId.error());
+    Cli::printError(indexId.error()); // TODO: fix helper function
+    return false;
+  }
+  index.setId(indexId.value());
+
+  m_database.prepareEntryInsert();
+
+  auto entryResult = scanner::scan(path, [&](const Entry& entry)
+  {
+    return m_database.insertEntry(index.id(), entry);
+  }); // Insert entry as callback
+
+  if (!entryResult)
+  {
+    Cli::printError(entryResult.error());
     return false;
   }
 
-  index.setId(indexId.value());
+  m_database.finalizeEntryInsert();
+  m_database.commit();
 
   m_indexStore.push_back(std::move(index));
   return true;
