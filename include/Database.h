@@ -35,11 +35,15 @@ public:
   void beginTransaction();
   void commit();
 
+  // Scan functions
   std::expected<std::int64_t, Error> insertIndex(const Index& index);
   void prepareEntryInsert();
   std::expected<void, Error> insertEntry(std::int64_t indexId, const Entry& entry);
   void finalizeEntryInsert();
   std::vector<Index> loadIndexes();
+
+  // Rescan functions TODO: update existing entries
+  void deleteEntriesForIndex(std::int64_t indexId);
 
 private:
   void initializeSchema();

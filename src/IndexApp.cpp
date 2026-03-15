@@ -14,25 +14,21 @@ IndexApp::IndexApp(const std::string& dbPath)
 , m_indexStore { m_database.loadIndexes() }
 { }
 
-bool IndexApp::isValidPath(const fs::path& path) const
+bool IndexApp::isIndexed(const fs::path& path) const
 {
-  // False if not directory
-  if (!fs::is_directory(path))
-    return false;
-
   // False is already exists in m_indexStore
   if (std::ranges::any_of(m_indexStore, [&](const Index& index)
   {
     return index.root() == path;
-  })) { return false; }
+  })) { return true; }
 
-  return true;
+  return false;
 }
 
 bool IndexApp::createIndex(const fs::path& path)
 {
   const fs::path indexPath = normalizePath(path);
-  if (!isValidPath(indexPath))
+  if (!fs::is_directory(indexPath) || isIndexed(indexPath))
     return false;
 
   m_database.beginTransaction();
@@ -65,6 +61,23 @@ bool IndexApp::createIndex(const fs::path& path)
 
   m_indexStore.push_back(std::move(index));
   return true;
+}
+
+bool IndexApp::rescanIndex(const fs::path& path)
+{
+  const fs::path indexPath = normalizePath(path);
+  if (!fs::is_directory(indexPath) || !isIndexed(indexPath))
+    return false;
+
+  const auto id = std::ranges::find_if(m_indexStore, [&](const Index& index)
+  {
+    return index.root() == indexPath;
+  });
+
+  if (id == m_indexStore.end())
+    return false;
+
+  // TODO: delete and rescan entries
 }
 
 fs::path IndexApp::normalizePath(const fs::path& path)

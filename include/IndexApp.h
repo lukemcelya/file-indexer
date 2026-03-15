@@ -20,8 +20,9 @@ public:
   IndexApp() = default;
   explicit IndexApp(const std::string& dbPath);
 
-  [[nodiscard]]bool isValidPath(const fs::path& path) const;
+  [[nodiscard]]bool isIndexed(const fs::path& path) const;
   bool createIndex(const fs::path& path);
+  bool rescanIndex(const fs::path& path);
 
 private:
   static fs::path normalizePath(const fs::path& path);
