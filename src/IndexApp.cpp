@@ -42,7 +42,7 @@ bool IndexApp::createIndex(const fs::path& path)
 
   if (!indexId)
   {
-    Cli::printError(indexId.error()); // TODO: fix helper function
+    Cli::printError(indexId.error());
     return false;
   }
   index.setId(indexId.value());

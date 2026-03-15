@@ -21,7 +21,7 @@ namespace scanner
       const Entry::EntryType type = entry.is_regular_file() ? Entry::EntryType::FILE : Entry::EntryType::DIRECTORY;
 
       Entry e{
-        entry.path(),
+        fs::relative(entry.path(), path),
         entry.path().filename(),
         entry.path().extension(),
         type,

@@ -153,7 +153,7 @@ void Database::initializeSchema()
   query = "CREATE TABLE IF NOT EXISTS entries( "
           "id INTEGER PRIMARY KEY, "
           "index_id INTEGER NOT NULL, "
-          "full_path TEXT NOT NULL, "
+          "relative_path TEXT NOT NULL, "
           "name TEXT NOT NULL, "
           "extension TEXT, "
           "is_directory INTEGER NOT NULL, "
