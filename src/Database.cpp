@@ -141,6 +141,13 @@ std::vector<Index> Database::loadIndexes()
   return indexes;
 }
 
+std::unordered_map<std::string, Entry> Database::loadEntriesFromIndex(const Index& index)
+{
+  std::unordered_map<std::string, Entry> entries;
+
+  sqlite3_stmt* stmt;
+}
+
 void Database::initializeSchema()
 {
   std::string query = "CREATE TABLE IF NOT EXISTS indexes( "

@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <expected>
+#include <unordered_map>
 
 class Database
 {
@@ -41,6 +42,7 @@ public:
   std::expected<void, Error> insertEntry(std::int64_t indexId, const Entry& entry);
   void finalizeEntryInsert();
   std::vector<Index> loadIndexes();
+  std::unordered_map<std::string, Entry> loadEntriesFromIndex(const Index& index);
 
   // Rescan functions TODO: update existing entries
   void deleteEntriesForIndex(std::int64_t indexId);
