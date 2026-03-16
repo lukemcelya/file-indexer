@@ -56,7 +56,7 @@ bool IndexApp::createIndex(const fs::path& path)
     return false;
   }
 
-  m_database.finalizeEntryInsert();
+  m_database.finalizeStatement();
   m_database.commit();
 
   m_indexStore.push_back(std::move(index));
