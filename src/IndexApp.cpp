@@ -27,8 +27,7 @@ bool IndexApp::isIndexed(const fs::path& path) const
 
 bool IndexApp::isEntryChanged(const Entry& oldEntry, const Entry& newEntry)
 {
-  return oldEntry.size != newEntry.size ||
-         oldEntry.lastWrittenAt != newEntry.lastWrittenAt;
+  return oldEntry.size != newEntry.size;
 }
 
 bool IndexApp::createIndex(const fs::path& path)
@@ -83,7 +82,7 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, s
   if (currentIndex == m_indexStore.end())
     return std::unexpected("Directory not indexed");
 
-  std::unordered_map<std::string, Entry> existing = m_database.loadEntriesFromIndex(*currentIndex);
+  std::unordered_map<std::string, Entry> existing = m_database.loadEntriesFromIndex(currentIndex->id());
   RescanStats stats{};
 
   m_database.beginTransaction();

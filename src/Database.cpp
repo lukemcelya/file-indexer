@@ -178,7 +178,11 @@ auto Database::updateEntry(std::int64_t indexId, const Entry& entry) -> std::exp
 
 void Database::finalizeStatement()
 {
-  sqlite3_finalize(m_stmt);
+  if (m_stmt != nullptr)
+  {
+    sqlite3_finalize(m_stmt);
+    m_stmt = nullptr;
+  }
 }
 
 std::vector<Index> Database::loadIndexes()
@@ -205,17 +209,17 @@ std::vector<Index> Database::loadIndexes()
   return indexes;
 }
 
-std::unordered_map<std::string, Entry> Database::loadEntriesFromIndex(const Index& index)
+std::unordered_map<std::string, Entry> Database::loadEntriesFromIndex(std::int64_t indexId)
 {
-  std::unordered_map<std::string, Entry> entries;
+  std::unordered_map<std::string, Entry> entries{};
 
   sqlite3_prepare_v2(m_db,
-    "SELECT (relative_path, name, extension, is_directory, size_bytes, last_written_at) FROM entries WHERE index_id = ?;",
+    "SELECT relative_path, name, extension, is_directory, size_bytes, last_written_at FROM entries WHERE index_id = ?;",
     -1,
     &m_stmt,
     nullptr);
 
-  sqlite3_bind_int64(m_stmt, 1, index.id());
+  sqlite3_bind_int64(m_stmt, 1, indexId);
 
   while (sqlite3_step(m_stmt) == SQLITE_ROW)
   {

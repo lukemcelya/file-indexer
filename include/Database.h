@@ -47,7 +47,7 @@ public:
   std::expected<void, Error> updateEntry(std::int64_t indexId, const Entry& entry);
   void finalizeStatement();
   std::vector<Index> loadIndexes();
-  std::unordered_map<std::string, Entry> loadEntriesFromIndex(const Index& index);
+  std::unordered_map<std::string, Entry> loadEntriesFromIndex(std::int64_t indexId);
 
   // Rescan functions TODO: update existing entries
   void deleteEntriesForIndex(std::int64_t indexId);

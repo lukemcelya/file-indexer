@@ -47,7 +47,7 @@ int Cli::handleCommand(const std::vector<std::string>& args)
   if (command == "index")
     return handleIndex(args[1]);
   if (command == "rescan")
-    return handleRescan(args);
+    return handleRescan(args[1]);
   if (command == "find")
     return handleFind(args);
   if (command == "duplicate")
