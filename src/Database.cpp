@@ -80,7 +80,7 @@ void Database::prepareEntryInsert()
 {
   sqlite3_prepare_v2(
     m_db,
-    "INSERT INTO entries (index_id, full_path, name, extension, is_directory, size_bytes, last_written_at) VALUES (?, ?, ?, ?, ?, ?, ?);",
+    "INSERT INTO entries (index_id, relative_path, name, extension, is_directory, size_bytes, last_written_at) VALUES (?, ?, ?, ?, ?, ?, ?);",
     -1,
     &m_stmt,
     nullptr);
