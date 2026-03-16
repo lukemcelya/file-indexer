@@ -1,10 +1,14 @@
 #include "Database.h"
+#include "Index.h"
+#include "Entry.h"
 
 #include <sqlite3.h>
 #include <string>
 #include <vector>
 #include <expected>
 #include <chrono>
+#include <unordered_map>
+#include <ostream>
 
 Database::Database(const std::string& dbPath)
 {
@@ -62,7 +66,7 @@ auto Database::insertIndex(const Index& index) -> std::expected<std::int64_t, Er
 
   if (sqlite3_step(m_stmt) != SQLITE_DONE)
   {
-    sqlite3_finalize(m_stmt);
+    finalizeStatement();
     return std::unexpected(Error{
     sqlite3_errcode(m_db),
     sqlite3_errmsg(m_db)
@@ -71,7 +75,7 @@ auto Database::insertIndex(const Index& index) -> std::expected<std::int64_t, Er
 
   const sqlite3_int64 indexId = sqlite3_last_insert_rowid(m_db);
 
-  sqlite3_finalize(m_stmt);
+  finalizeStatement();
 
   return indexId;
 }
@@ -98,7 +102,7 @@ auto Database::insertEntry(std::int64_t indexId, const Entry& entry) -> std::exp
 
   if (sqlite3_step(m_stmt) != SQLITE_DONE)
   {
-    sqlite3_finalize(m_stmt);
+    finalizeStatement();
     return std::unexpected(Error{
       sqlite3_errcode(m_db),
         sqlite3_errmsg(m_db)
@@ -111,7 +115,7 @@ auto Database::insertEntry(std::int64_t indexId, const Entry& entry) -> std::exp
   return {};
 }
 
-void Database::finalizeEntryInsert()
+void Database::finalizeStatement()
 {
   sqlite3_finalize(m_stmt);
 }
@@ -120,24 +124,23 @@ std::vector<Index> Database::loadIndexes()
 {
   std::vector<Index> indexes;
 
-  sqlite3_stmt* stmt;
+  sqlite3_prepare_v2(m_db, "SELECT * FROM indexes;", -1, &m_stmt, nullptr);
 
-  sqlite3_prepare_v2(m_db, "SELECT * FROM indexes;", -1, &stmt, nullptr);
-
-  while (sqlite3_step(stmt) == SQLITE_ROW)
+  while (sqlite3_step(m_stmt) == SQLITE_ROW)
   {
-    const std::int64_t id = sqlite3_column_int64(stmt, 0);
+    const std::int64_t id = sqlite3_column_int64(m_stmt, 0);
 
-    const unsigned char* pathText = sqlite3_column_text(stmt, 1);
+    const unsigned char* pathText = sqlite3_column_text(m_stmt, 1);
     fs::path path = pathText ? fs::path(reinterpret_cast<const char*>(pathText)) : fs::path{};
 
-    const std::int64_t createdAt = sqlite3_column_int64(stmt, 2);
+    const std::int64_t createdAt = sqlite3_column_int64(m_stmt, 2);
 
-    const std::int64_t lastScannedAt = sqlite3_column_int64(stmt, 3);
+    const std::int64_t lastScannedAt = sqlite3_column_int64(m_stmt, 3);
 
     indexes.emplace_back(Index{id, std::move(path), createdAt, lastScannedAt});
   }
 
+  finalizeStatement();
   return indexes;
 }
 
@@ -145,7 +148,45 @@ std::unordered_map<std::string, Entry> Database::loadEntriesFromIndex(const Inde
 {
   std::unordered_map<std::string, Entry> entries;
 
-  sqlite3_stmt* stmt;
+  sqlite3_prepare_v2(m_db,
+    "SELECT (relative_path, name, extension, is_directory, size_bytes, last_written_at) FROM entries WHERE index_id = ?;",
+    -1,
+    &m_stmt,
+    nullptr);
+
+  sqlite3_bind_int64(m_stmt, 1, index.id());
+
+  while (sqlite3_step(m_stmt) == SQLITE_ROW)
+  {
+    const unsigned char* pathText = sqlite3_column_text(m_stmt, 0);
+    fs::path path = pathText ? fs::path(reinterpret_cast<const char*>(pathText)) : fs::path{};
+
+    std::string pathKey = path.string();
+
+    const unsigned char* nameText = sqlite3_column_text(m_stmt, 1);
+    const fs::path name = nameText ? fs::path(reinterpret_cast<const char*>(nameText)) : fs::path{};
+
+    const unsigned char* extText = sqlite3_column_text(m_stmt, 2);
+    const fs::path ext = extText ? fs::path(reinterpret_cast<const char*>(extText)) : fs::path{};
+
+    const std::int64_t type = sqlite3_column_int64(m_stmt, 3) == 0 ? 0 : 1; // 0 is FILE type, anything else is DIRECTORY
+
+    const std::uintmax_t size = sqlite3_column_int64(m_stmt, 4);
+
+    const fs::file_time_type lastWritten = toFileTime(sqlite3_column_int64(m_stmt, 5));
+
+    entries.try_emplace(pathKey, Entry{
+      path,
+      name,
+      ext,
+      type == 0 ? Entry::EntryType::FILE : Entry::EntryType::DIRECTORY,
+      size,
+      lastWritten
+    });
+  }
+
+  finalizeStatement();
+  return entries;
 }
 
 void Database::initializeSchema()
@@ -170,11 +211,21 @@ void Database::initializeSchema()
   exec(query);
 }
 
-// Converting fs::file_time_type to fit into int 64 on sqlite3 db
+// Converting to int64_t Unix Time from fs::file_time_type
 std::int64_t Database::toUnixTime(const fs::file_time_type time)
 {
   const auto sctp = std::chrono::clock_cast<std::chrono::system_clock>(
     time - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
 
   return std::chrono::duration_cast<std::chrono::seconds>(sctp.time_since_epoch()).count();
+}
+
+// Convert back to file_time_type from Unix Time
+fs::file_time_type Database::toFileTime(const std::int64_t time)
+{
+  const auto sysTime = std::chrono::system_clock::time_point{
+    std::chrono::seconds{time}
+  };
+
+  return std::chrono::clock_cast<fs::file_time_type::clock>(sysTime);
 }

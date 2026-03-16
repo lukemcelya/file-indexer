@@ -8,6 +8,7 @@
 #include <vector>
 #include <expected>
 #include <unordered_map>
+#include <ostream>
 
 class Database
 {
@@ -40,7 +41,7 @@ public:
   std::expected<std::int64_t, Error> insertIndex(const Index& index);
   void prepareEntryInsert();
   std::expected<void, Error> insertEntry(std::int64_t indexId, const Entry& entry);
-  void finalizeEntryInsert();
+  void finalizeStatement();
   std::vector<Index> loadIndexes();
   std::unordered_map<std::string, Entry> loadEntriesFromIndex(const Index& index);
 
@@ -51,4 +52,5 @@ private:
   void initializeSchema();
 
   static std::int64_t toUnixTime(fs::file_time_type time);
+  static fs::file_time_type toFileTime(std::int64_t time);
 };
