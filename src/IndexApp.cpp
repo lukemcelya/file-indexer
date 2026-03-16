@@ -61,7 +61,7 @@ bool IndexApp::createIndex(const fs::path& path)
     return false;
   }
 
-  m_database.finalizeStatement();
+  m_database.finalizeEntryInsert();
   m_database.commit();
 
   m_indexStore.push_back(std::move(index));
@@ -136,7 +136,9 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, s
     ++stats.deleted;
   }
 
-  m_database.finalizeStatement();
+  m_database.finalizeEntryInsert();
+  m_database.finalizeEntryDelete();
+  m_database.finalizeEntryUpdate();
   m_database.commit();
 
   return stats;

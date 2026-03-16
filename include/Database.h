@@ -25,8 +25,11 @@ public:
   };
 
 private:
-  sqlite3* m_db = nullptr;
-  sqlite3_stmt* m_stmt{};
+  sqlite3* m_db = nullptr;\
+  sqlite3_stmt* m_stmtIndexInsert{};
+  sqlite3_stmt* m_stmtEntryInsert{};
+  sqlite3_stmt* m_stmtEntryDelete{};
+  sqlite3_stmt* m_stmtEntryUpdate{};
 
 public:
   Database() : Database("indexes.db") {};
@@ -45,7 +48,12 @@ public:
   std::expected<void, Error> insertEntry(std::int64_t indexId, const Entry& entry);
   std::expected<void, Error> deleteEntry(std::int64_t indexId, const Entry& entry);
   std::expected<void, Error> updateEntry(std::int64_t indexId, const Entry& entry);
-  void finalizeStatement();
+
+  void finalizeIndexInsert();
+  void finalizeEntryInsert();
+  void finalizeEntryDelete();
+  void finalizeEntryUpdate();
+
   std::vector<Index> loadIndexes();
   std::unordered_map<std::string, Entry> loadEntriesFromIndex(std::int64_t indexId);
 
