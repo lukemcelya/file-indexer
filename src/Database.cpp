@@ -90,8 +90,29 @@ void Database::prepareEntryInsert()
     nullptr);
 }
 
+void Database::prepareEntryDelete()
+{
+  sqlite3_prepare_v2(
+    m_db,
+    "DELETE FROM entries WHERE index_id = ? AND relative_path = ?;",
+    -1,
+    &m_stmt,
+    nullptr);
+}
+
+void Database::prepareEntryUpdate()
+{
+  sqlite3_prepare_v2(
+    m_db,
+    "UPDATE entries SET size_bytes = ?, last_written_at = ? WHERE index_id = ? AND relative_path = ?",
+    -1,
+    &m_stmt,
+    nullptr);
+}
+
 auto Database::insertEntry(std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
 {
+  // index_id > relative_path > name > extension > is_directory > size_bytes > last_written_at
   sqlite3_bind_int64(m_stmt, 1, indexId);
   sqlite3_bind_text(m_stmt, 2, entry.path.string().c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(m_stmt, 3, entry.name.string().c_str(), -1, SQLITE_TRANSIENT);
@@ -107,6 +128,46 @@ auto Database::insertEntry(std::int64_t indexId, const Entry& entry) -> std::exp
       sqlite3_errcode(m_db),
         sqlite3_errmsg(m_db)
     });
+  }
+
+  sqlite3_reset(m_stmt);
+  sqlite3_clear_bindings(m_stmt);
+
+  return {};
+}
+
+auto Database::deleteEntry(std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
+{
+  sqlite3_bind_int64(m_stmt, 1, indexId);
+  sqlite3_bind_text(m_stmt, 2, entry.path.string().c_str(), -1, SQLITE_TRANSIENT);
+
+  if (sqlite3_step(m_stmt) != SQLITE_DONE)
+  {
+    finalizeStatement();
+    return std::unexpected(Error{
+      sqlite3_errcode(m_db),
+      sqlite3_errmsg(m_db)});
+  }
+
+  sqlite3_reset(m_stmt);
+  sqlite3_clear_bindings(m_stmt);
+
+  return {};
+}
+
+auto Database::updateEntry(std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
+{
+  // size_bytes > last_written_at > index_id > relative_path
+  sqlite3_bind_int64(m_stmt, 1, entry.size);
+  sqlite3_bind_int64(m_stmt, 2, toUnixTime(entry.lastWrittenAt));
+  sqlite3_bind_int64(m_stmt, 3, indexId);
+  sqlite3_bind_text(m_stmt, 4, entry.path.string().c_str(), -1, SQLITE_TRANSIENT);
+
+  if (sqlite3_step(m_stmt) != SQLITE_DONE)
+  {
+    return std::unexpected(Error{
+      sqlite3_errcode(m_db),
+      sqlite3_errmsg(m_db)});
   }
 
   sqlite3_reset(m_stmt);

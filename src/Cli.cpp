@@ -92,8 +92,20 @@ int Cli::handleIndex(std::string_view dir)
   return 0;
 }
 
-int Cli::handleRescan(const std::vector<std::string>& args)
+int Cli::handleRescan(std::string_view dir)
 {
+  const auto result = m_indexApp.rescanIndex(dir);
+  if (!result)
+  {
+    std::cout << result.error() << "\n";
+    return 1;
+  }
+
+  std::cout << "Rescan stats:\n"
+            << "Added: " << result.value().added << "\n"
+            << "Deleted: " << result.value().deleted << "\n"
+            << "Modified: " << result.value().modified << "\n"
+            << "Unmodified: " << result.value().unmodified << "\n";
   return 0;
 }
 

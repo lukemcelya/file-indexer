@@ -25,6 +25,12 @@ bool IndexApp::isIndexed(const fs::path& path) const
   return false;
 }
 
+bool IndexApp::isEntryChanged(const Entry& oldEntry, const Entry& newEntry)
+{
+  return oldEntry.size != newEntry.size ||
+         oldEntry.lastWrittenAt != newEntry.lastWrittenAt;
+}
+
 bool IndexApp::createIndex(const fs::path& path)
 {
   const fs::path indexPath = normalizePath(path);
@@ -63,21 +69,78 @@ bool IndexApp::createIndex(const fs::path& path)
   return true;
 }
 
-bool IndexApp::rescanIndex(const fs::path& path)
+auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, std::string>
 {
   const fs::path indexPath = normalizePath(path);
   if (!fs::is_directory(indexPath) || !isIndexed(indexPath))
-    return false;
+    return std::unexpected("Directory not found");
 
-  const auto id = std::ranges::find_if(m_indexStore, [&](const Index& index)
+  const auto currentIndex = std::ranges::find_if(m_indexStore, [&](const Index& index)
   {
     return index.root() == indexPath;
   });
 
-  if (id == m_indexStore.end())
-    return false;
+  if (currentIndex == m_indexStore.end())
+    return std::unexpected("Directory not indexed");
 
-  // TODO: delete and rescan entries
+  std::unordered_map<std::string, Entry> existing = m_database.loadEntriesFromIndex(*currentIndex);
+  RescanStats stats{};
+
+  m_database.beginTransaction();
+
+  auto scanResult = scanner::scan(path, [&](const Entry& entry) -> std::expected<void, Database::Error>
+  {
+    const auto it = existing.find(entry.path.string());
+
+    if (it == existing.end())
+    {
+      m_database.prepareEntryInsert();
+      if (auto r = m_database.insertEntry(currentIndex->id(), entry); !r)
+        return std::unexpected(r.error());
+
+      ++stats.added;
+      return {};
+    }
+
+    if (isEntryChanged(it->second, entry))
+    {
+      m_database.prepareEntryUpdate();
+      if (auto r = m_database.updateEntry(currentIndex->id(), entry); !r)
+        return std::unexpected(r.error());
+
+      ++stats.modified;
+    }
+    else
+    {
+      ++stats.unmodified;
+    }
+
+    existing.erase(it);
+    return {};
+  });
+
+  if (!scanResult)
+  {
+    Cli::printError(scanResult.error());
+    return std::unexpected("Index not found");
+  }
+
+  for (const auto& [relativePath, oldEntry] : existing)
+  {
+    m_database.prepareEntryDelete();
+    if (auto r = m_database.deleteEntry(currentIndex->id(), oldEntry); !r)
+    {
+      Cli::printError(r.error());
+      return std::unexpected("Deletion not completed");
+    }
+
+    ++stats.deleted;
+  }
+
+  m_database.finalizeStatement();
+  m_database.commit();
+
+  return stats;
 }
 
 fs::path IndexApp::normalizePath(const fs::path& path)

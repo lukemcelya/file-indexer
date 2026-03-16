@@ -40,7 +40,11 @@ public:
   // Scan functions
   std::expected<std::int64_t, Error> insertIndex(const Index& index);
   void prepareEntryInsert();
+  void prepareEntryDelete();
+  void prepareEntryUpdate();
   std::expected<void, Error> insertEntry(std::int64_t indexId, const Entry& entry);
+  std::expected<void, Error> deleteEntry(std::int64_t indexId, const Entry& entry);
+  std::expected<void, Error> updateEntry(std::int64_t indexId, const Entry& entry);
   void finalizeStatement();
   std::vector<Index> loadIndexes();
   std::unordered_map<std::string, Entry> loadEntriesFromIndex(const Index& index);

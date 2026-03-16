@@ -22,7 +22,7 @@ private:
   void repl();
 
   int handleIndex(std::string_view dir);
-  int handleRescan(const std::vector<std::string>& args);
+  int handleRescan(std::string_view dir);
   int handleFind(const std::vector<std::string>& args);
   int handleDuplicate(const std::vector<std::string>& args);
   int handleStats(const std::vector<std::string>& args);
