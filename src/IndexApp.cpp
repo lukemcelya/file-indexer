@@ -25,11 +25,6 @@ bool IndexApp::isIndexed(const fs::path& path) const
   return false;
 }
 
-bool IndexApp::isEntryChanged(const Entry& oldEntry, const Entry& newEntry)
-{
-  return oldEntry.size != newEntry.size;
-}
-
 bool IndexApp::createIndex(const fs::path& path)
 {
   const fs::path indexPath = normalizePath(path);
@@ -142,6 +137,23 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, s
   m_database.commit();
 
   return stats;
+}
+
+std::vector<Database::FindResult> IndexApp::findAllEntries(const std::string& query)
+{
+  const auto result = m_database.findEntries(query);
+  if (!result)
+  {
+    Cli::printError(result.error());
+    return {};
+  }
+
+  return *result;
+}
+
+bool IndexApp::isEntryChanged(const Entry& oldEntry, const Entry& newEntry)
+{
+  return oldEntry.size != newEntry.size;
 }
 
 fs::path IndexApp::normalizePath(const fs::path& path)

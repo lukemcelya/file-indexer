@@ -13,6 +13,7 @@ namespace fs = std::filesystem;
 
 class IndexApp
 {
+private:
   using IndexStore = std::vector<Index>;
 
   struct RescanStats
@@ -32,10 +33,11 @@ public:
   explicit IndexApp(const std::string& dbPath);
 
   [[nodiscard]]bool isIndexed(const fs::path& path) const;
-  [[nodiscard]]bool isEntryChanged(const Entry& oldEntry, const Entry& newEntry);
   bool createIndex(const fs::path& path);
   std::expected<RescanStats, std::string> rescanIndex(const fs::path& path);
+  std::vector<Database::FindResult> findAllEntries(const std::string& query);
 
 private:
+  static bool isEntryChanged(const Entry& oldEntry, const Entry& newEntry);
   static fs::path normalizePath(const fs::path& path);
 };

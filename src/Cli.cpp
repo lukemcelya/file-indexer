@@ -34,6 +34,7 @@ void Cli::printError(const Database::Error& error)
   std::cerr << error << "\n";
 }
 
+
 int Cli::handleCommand(const std::vector<std::string>& args)
 {
   if (args.empty())
@@ -111,6 +112,14 @@ int Cli::handleRescan(std::string_view dir)
 
 int Cli::handleFind(const std::vector<std::string>& args)
 {
+  const auto result = m_indexApp.findAllEntries(args[1]);
+
+  if (result.empty())
+  {
+    return 1;
+  }
+
+  printFindResults(result);
   return 0;
 }
 
@@ -150,4 +159,16 @@ void Cli::printUsage()
             << "    duplicates\n"
             << "    stats\n"
             << "    compare      <scan1> <scan2>\n";
+}
+
+void Cli::printFindResults(const std::vector<Database::FindResult>& findResults)
+{
+  std::cout << "Found " << findResults.size() << " results:\n";
+
+  for (const auto& [path, type, size] : findResults)
+  {
+    std::string fileType = type == Entry::EntryType::FILE ? "[FILE] " : "[DIR ] ";
+
+    std::cout << fileType << path << " " << size << " bytes\n";
+  }
 }

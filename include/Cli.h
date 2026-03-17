@@ -30,4 +30,5 @@ private:
 
   static std::vector<std::string> tokenize(const std::string& input);
   static void printUsage();
+  static void printFindResults(const std::vector<Database::FindResult>& findResults);
 };

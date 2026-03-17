@@ -25,7 +25,7 @@ Database::~Database()
   sqlite3_close(m_db);
 }
 
-bool Database::exec(std::string_view query)
+bool Database::exec(const std::string_view query)
 {
   char* errMsg;
 
@@ -110,7 +110,7 @@ void Database::prepareEntryUpdate()
     nullptr);
 }
 
-auto Database::insertEntry(std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
+auto Database::insertEntry(const std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
 {
   // index_id > relative_path > name > extension > is_directory > size_bytes > last_written_at
   sqlite3_bind_int64(m_stmtEntryInsert, 1, indexId);
@@ -136,7 +136,7 @@ auto Database::insertEntry(std::int64_t indexId, const Entry& entry) -> std::exp
   return {};
 }
 
-auto Database::deleteEntry(std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
+auto Database::deleteEntry(const std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
 {
   sqlite3_bind_int64(m_stmtEntryDelete, 1, indexId);
   sqlite3_bind_text(m_stmtEntryDelete, 2, entry.path.string().c_str(), -1, SQLITE_TRANSIENT);
@@ -155,7 +155,7 @@ auto Database::deleteEntry(std::int64_t indexId, const Entry& entry) -> std::exp
   return {};
 }
 
-auto Database::updateEntry(std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
+auto Database::updateEntry(const std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
 {
   // size_bytes > last_written_at > index_id > relative_path
   sqlite3_bind_int64(m_stmtEntryUpdate, 1, entry.size);
@@ -174,6 +174,75 @@ auto Database::updateEntry(std::int64_t indexId, const Entry& entry) -> std::exp
   sqlite3_clear_bindings(m_stmtEntryUpdate);
 
   return {};
+}
+
+auto Database::findEntries(const std::string& query, const std::optional<std::int64_t> indexId) -> std::expected<std::vector<FindResult>, Error>
+{
+  if (indexId == std::nullopt || !indexId.has_value())
+    prepareEntrySearchNoId(query);
+  else
+    prepareEntrySearch(query, *indexId);
+
+  std::vector<FindResult> result{};
+
+  int rc;
+  while ((rc = sqlite3_step(m_stmtEntrySearch)) == SQLITE_ROW)
+  {
+    const unsigned char* pathText = sqlite3_column_text(m_stmtEntrySearch, 0);
+    const fs::path path = pathText ? fs::path(reinterpret_cast<const char*>(pathText)) : fs::path{};
+
+    const std::int64_t type = sqlite3_column_int64(m_stmtEntrySearch, 1) == 0 ? 0 : 1;
+
+    const std::uintmax_t size = sqlite3_column_int64(m_stmtEntrySearch, 2);
+
+    result.emplace_back(FindResult{
+      path,
+      type == 0 ? Entry::EntryType::FILE : Entry::EntryType::DIRECTORY,
+      size
+      });
+  }
+
+  if (rc != SQLITE_DONE)
+  {
+    return std::unexpected(Error{
+      sqlite3_errcode(m_db),
+      sqlite3_errmsg(m_db)});
+  }
+
+  return result;
+}
+
+void Database::prepareEntrySearchNoId(const std::string& query)
+{
+  sqlite3_prepare_v2(
+    m_db,
+    "SELECT relative_path, is_directory, size_bytes FROM entries WHERE relative_path LIKE ? OR name LIKE ? OR extension LIKE?;",
+    -1,
+    &m_stmtEntrySearch,
+    nullptr);
+
+  const std::string newQuery = "%" + query + "%";
+
+  sqlite3_bind_text(m_stmtEntrySearch, 1, newQuery.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(m_stmtEntrySearch, 2, newQuery.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(m_stmtEntrySearch, 3, newQuery.c_str(), -1, SQLITE_TRANSIENT);
+}
+
+void Database::prepareEntrySearch(const std::string& query, const std::int64_t indexId)
+{
+  sqlite3_prepare_v2(
+    m_db,
+    "SELECT relative_path, is_directory, size_bytes FROM entries WHERE index_id = ? AND relative_path LIKE ? OR name LIKE ? OR extension LIKE?;",
+    -1,
+    &m_stmtEntrySearch,
+    nullptr);
+
+  const std::string newQuery = "%" + query + "%";
+
+  sqlite3_bind_int64(m_stmtEntrySearch, 1, indexId);
+  sqlite3_bind_text(m_stmtEntrySearch, 2, newQuery.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(m_stmtEntrySearch, 3, newQuery.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(m_stmtEntrySearch, 4, newQuery.c_str(), -1, SQLITE_TRANSIENT);
 }
 
 void Database::finalizeIndexInsert()
@@ -236,7 +305,7 @@ std::vector<Index> Database::loadIndexes()
   return indexes;
 }
 
-std::unordered_map<std::string, Entry> Database::loadEntriesFromIndex(std::int64_t indexId)
+std::unordered_map<std::string, Entry> Database::loadEntriesFromIndex(const std::int64_t indexId)
 {
   std::unordered_map<std::string, Entry> entries{};
 
@@ -251,9 +320,9 @@ std::unordered_map<std::string, Entry> Database::loadEntriesFromIndex(std::int64
   while (sqlite3_step(m_stmtEntryInsert) == SQLITE_ROW)
   {
     const unsigned char* pathText = sqlite3_column_text(m_stmtEntryInsert, 0);
-    fs::path path = pathText ? fs::path(reinterpret_cast<const char*>(pathText)) : fs::path{};
+    const fs::path path = pathText ? fs::path(reinterpret_cast<const char*>(pathText)) : fs::path{};
 
-    std::string pathKey = path.string();
+    const std::string pathKey = path.string();
 
     const unsigned char* nameText = sqlite3_column_text(m_stmtEntryInsert, 1);
     const fs::path name = nameText ? fs::path(reinterpret_cast<const char*>(nameText)) : fs::path{};
