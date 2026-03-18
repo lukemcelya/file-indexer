@@ -4,6 +4,8 @@
 
 #include <filesystem>
 #include <iostream>
+#include <string>
+#include <sstream>
 
 Cli::Cli(IndexApp& indexApp)
   : m_indexApp { indexApp }
