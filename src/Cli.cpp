@@ -110,7 +110,7 @@ int Cli::handleRescan(std::string_view dir)
   return 0;
 }
 
-int Cli::handleFind(const std::vector<std::string>& args)
+int Cli::handleFind(const std::vector<std::string>& args) const
 {
   const auto result = m_indexApp.findAllEntries(args[1]);
 
