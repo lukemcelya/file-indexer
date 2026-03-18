@@ -23,7 +23,7 @@ private:
 
   int handleIndex(std::string_view dir);
   int handleRescan(std::string_view dir);
-  int handleFind(const std::vector<std::string>& args) const;
+  [[nodiscard]] int handleFind(const std::vector<std::string>& args) const;
   int handleDuplicate(const std::vector<std::string>& args);
   int handleStats(const std::vector<std::string>& args);
   int handleCompare(const std::vector<std::string>& args);

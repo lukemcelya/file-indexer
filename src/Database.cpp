@@ -8,7 +8,6 @@
 #include <expected>
 #include <chrono>
 #include <unordered_map>
-#include <ostream>
 
 Database::Database(const std::string& dbPath)
 {

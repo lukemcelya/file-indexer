@@ -4,7 +4,6 @@
 
 #include <filesystem>
 #include <iostream>
-#include <print>
 
 Cli::Cli(IndexApp& indexApp)
   : m_indexApp { indexApp }
@@ -66,7 +65,7 @@ void Cli::repl()
 {
   while (true)
   {
-    std::print("> ");
+    std::cout << "> ";
     std::string input;
     if (!std::getline(std::cin, input))
       break;
@@ -89,7 +88,7 @@ int Cli::handleIndex(std::string_view dir)
   if (!m_indexApp.createIndex(dir))
     return 1;
 
-  std::print("Index: {} created.\n", dir);
+  std::cout << "Index: " << dir << " created\n";
   return 0;
 }
 
