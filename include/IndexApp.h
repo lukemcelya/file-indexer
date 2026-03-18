@@ -6,7 +6,6 @@
 
 #include <filesystem>
 #include <string>
-#include <ostream>
 
 namespace fs = std::filesystem;
 
