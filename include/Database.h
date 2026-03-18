@@ -42,7 +42,7 @@ private:
 
 public:
   Database() : Database("indexes.db") {};
-  explicit Database(const std::string& dbPath);
+  explicit Database(const fs::path& dbPath);
   ~Database();
 
   // Transaction handling

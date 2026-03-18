@@ -3,15 +3,18 @@
 #include "Entry.h"
 
 #include <sqlite3.h>
+#include <filesystem>
 #include <string>
 #include <vector>
 #include <expected>
 #include <chrono>
 #include <unordered_map>
 
-Database::Database(const std::string& dbPath)
+Database::Database(const fs::path& dbPath)
 {
-  const int rc = sqlite3_open(dbPath.c_str(), &m_db);
+  fs::create_directories(dbPath.parent_path());
+
+  const int rc = sqlite3_open(dbPath.string().c_str(), &m_db);
 
   if (rc != SQLITE_OK)
     throw std::runtime_error("Can't open database: " + std::string(sqlite3_errmsg(m_db)));

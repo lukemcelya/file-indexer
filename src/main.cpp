@@ -3,7 +3,7 @@
 
 int main(const int argc, const char* argv[])
 {
-  IndexApp app("index.db");
+  IndexApp app("data/file-index.db");
   Cli cli(app);
 
   return cli.run(argc, argv);
