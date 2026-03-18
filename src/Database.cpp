@@ -373,7 +373,7 @@ void Database::initializeSchema()
 }
 
 // Converting to int64_t Unix Time from fs::file_time_type
-std::int64_t Database::toUnixTime(const fs::file_time_type time)
+std::int64_t Database::toUnixTime(const fs::file_time_type& time)
 {
   const auto sctp = std::chrono::clock_cast<std::chrono::system_clock>(
     time - fs::file_time_type::clock::now() + std::chrono::system_clock::now());

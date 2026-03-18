@@ -77,6 +77,6 @@ private:
   void initializeSchema();
 
   // Static helpers (convert int64_t time <> file_time_type)
-  static std::int64_t toUnixTime(fs::file_time_type time);
+  static std::int64_t toUnixTime(const fs::file_time_type& time);
   static fs::file_time_type toFileTime(std::int64_t time);
 };
