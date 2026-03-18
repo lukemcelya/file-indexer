@@ -377,18 +377,21 @@ void Database::initializeSchema()
 // Converting to int64_t Unix Time from fs::file_time_type
 std::int64_t Database::toUnixTime(const fs::file_time_type& time)
 {
-  const auto sctp = std::chrono::clock_cast<std::chrono::system_clock>(
-    time - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
+  const auto sysNow = std::chrono::system_clock::now();
+  const auto fileNow = fs::file_time_type::clock::now();
 
-  return std::chrono::duration_cast<std::chrono::seconds>(sctp.time_since_epoch()).count();
+  const auto sysTime = sysNow + (time - fileNow);
+
+  return std::chrono::duration_cast<std::chrono::seconds>(sysTime.time_since_epoch()).count();
 }
 
 // Convert back to file_time_type from Unix Time
 fs::file_time_type Database::toFileTime(const std::int64_t time)
 {
-  const auto sysTime = std::chrono::system_clock::time_point{
-    std::chrono::seconds{time}
-  };
+  const auto sysNow = std::chrono::system_clock::now();
+  const auto fileNow = fs::file_time_type::clock::now();
 
-  return std::chrono::clock_cast<fs::file_time_type::clock>(sysTime);
+  const auto sysTime = std::chrono::system_clock::time_point{std::chrono::seconds{time}};
+
+  return fileNow + (sysTime - sysNow);
 }
