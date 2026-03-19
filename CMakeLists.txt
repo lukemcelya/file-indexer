@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.24)
-project(FileIndex LANGUAGES C CXX)
+project(FileIndexer LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Core library
-add_library(fileindex_core
+add_library(fileindexer_core
         src/IndexApp.cpp
         src/Cli.cpp
         src/Index.cpp
@@ -13,15 +13,15 @@ add_library(fileindex_core
         external/sqlite/sqlite3.c
 )
 
-target_include_directories(fileindex_core PUBLIC
+target_include_directories(fileindexer_core PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/external/sqlite
 )
 
-add_executable(index
+add_executable(file-indexer
         src/main.cpp
 )
 
 target_link_libraries(index PRIVATE
-        fileindex_core
+        fileindexer_core
 )
