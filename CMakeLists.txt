@@ -22,6 +22,6 @@ add_executable(file-indexer
         src/main.cpp
 )
 
-target_link_libraries(index PRIVATE
+target_link_libraries(file-indexer PRIVATE
         fileindexer_core
 )
