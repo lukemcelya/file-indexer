@@ -14,16 +14,6 @@ IndexApp::IndexApp(const std::string& dbPath)
 , m_indexStore { m_database.loadIndexes() }
 { }
 
-bool IndexApp::isIndexed(const fs::path& path) const
-{
-  // False is already exists in m_indexStore
-  if (std::ranges::any_of(m_indexStore, [&](const Index& index)
-  {
-    return index.root() == path;
-  })) { return true; }
-
-  return false;
-}
 
 bool IndexApp::createIndex(const fs::path& path)
 {
@@ -82,7 +72,7 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, s
 
   m_database.beginTransaction();
 
-  auto scanResult = scanner::scan(path, [&](const Entry& entry) -> std::expected<void, Database::Error>
+  auto scanResult = scanner::scan(path, [&](const Entry& entry) -> std::expected<void, db::Error>
   {
     const auto it = existing.find(entry.path.string());
 
@@ -139,7 +129,7 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, s
   return stats;
 }
 
-std::vector<Database::FindResult> IndexApp::findAllEntries(const std::string& query)
+std::vector<db::FindResult> IndexApp::findAllEntries(const std::string& query)
 {
   const auto result = m_database.findEntries(query);
   if (!result)
@@ -149,6 +139,39 @@ std::vector<Database::FindResult> IndexApp::findAllEntries(const std::string& qu
   }
 
   return *result;
+}
+
+std::expected<db::ShowIndexResult, std::string> IndexApp::showIndex(const std::int64_t id)
+{
+  if (!isIndexed(id))
+    return std::unexpected("Index not found");
+
+  auto result = m_database.showIndex(id);
+  if (!result)
+    return std::unexpected(result.error().message);
+
+  return *result;
+}
+
+bool IndexApp::isIndexed(const fs::path& path) const
+{
+  // True if already exists in m_indexStore
+  if (std::ranges::any_of(m_indexStore, [&](const Index& index)
+  {
+    return index.root() == path;
+  })) { return true; }
+
+  return false;
+}
+
+bool IndexApp::isIndexed(const std::int64_t id) const
+{
+  if (std::ranges::any_of(m_indexStore, [&](const Index& index)
+  {
+    return index.id() == id;
+  })) { return true; }
+
+  return false;
 }
 
 bool IndexApp::isEntryChanged(const Entry& oldEntry, const Entry& newEntry)

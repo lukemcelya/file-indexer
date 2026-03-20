@@ -15,10 +15,10 @@ public:
 
   int run(int argc, const char* argv[]);
 
-  static void printError(const Database::Error& error);
+  static void printError(const db::Error& error);
 
 private:
-  int handleCommand(const std::vector<std::string>& args);
+  int handleCommand(const std::vector<std::string>& args, bool isRepl);
   void repl();
 
   int handleIndex(std::string_view dir);
@@ -27,8 +27,11 @@ private:
   int handleDuplicate(const std::vector<std::string>& args);
   int handleStats(const std::vector<std::string>& args);
   int handleCompare(const std::vector<std::string>& args);
+  [[nodiscard]] int handleShow(const std::vector<std::string>& args, bool isRepl) const;
 
   static std::vector<std::string> tokenize(const std::string& input);
   static void printUsage();
-  static void printFindResults(const std::vector<Database::FindResult>& findResults);
+  static void printFindResults(const std::vector<db::FindResult>& findResults);
+  static void printShowIndex(const db::ShowIndexResult& index);
+  static std::optional<std::int64_t> parseIndexFlag(const std::vector<std::string>& args, std::size_t startIndex);
 };

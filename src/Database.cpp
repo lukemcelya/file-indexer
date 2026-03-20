@@ -52,7 +52,7 @@ void Database::commit()
   exec("COMMIT;");
 }
 
-auto Database::insertIndex(const Index& index) -> std::expected<std::int64_t, Error>
+auto Database::insertIndex(const Index& index) -> std::expected<std::int64_t, db::Error>
 {
   sqlite3_prepare_v2(
     m_db,
@@ -69,7 +69,7 @@ auto Database::insertIndex(const Index& index) -> std::expected<std::int64_t, Er
   if (sqlite3_step(m_stmtIndexInsert) != SQLITE_DONE)
   {
     finalizeEntryInsert();
-    return std::unexpected(Error{
+    return std::unexpected(db::Error{
     sqlite3_errcode(m_db),
     sqlite3_errmsg(m_db)
     });
@@ -112,7 +112,7 @@ void Database::prepareEntryUpdate()
     nullptr);
 }
 
-auto Database::insertEntry(const std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
+auto Database::insertEntry(const std::int64_t indexId, const Entry& entry) -> std::expected<void, db::Error>
 {
   // index_id > relative_path > name > extension > is_directory > size_bytes > last_written_at
   sqlite3_bind_int64(m_stmtEntryInsert, 1, indexId);
@@ -126,7 +126,7 @@ auto Database::insertEntry(const std::int64_t indexId, const Entry& entry) -> st
   if (sqlite3_step(m_stmtEntryInsert) != SQLITE_DONE)
   {
     finalizeEntryInsert();
-    return std::unexpected(Error{
+    return std::unexpected(db::Error{
       sqlite3_errcode(m_db),
         sqlite3_errmsg(m_db)
     });
@@ -138,7 +138,7 @@ auto Database::insertEntry(const std::int64_t indexId, const Entry& entry) -> st
   return {};
 }
 
-auto Database::deleteEntry(const std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
+auto Database::deleteEntry(const std::int64_t indexId, const Entry& entry) -> std::expected<void, db::Error>
 {
   sqlite3_bind_int64(m_stmtEntryDelete, 1, indexId);
   sqlite3_bind_text(m_stmtEntryDelete, 2, entry.path.string().c_str(), -1, SQLITE_TRANSIENT);
@@ -146,7 +146,7 @@ auto Database::deleteEntry(const std::int64_t indexId, const Entry& entry) -> st
   if (sqlite3_step(m_stmtEntryDelete) != SQLITE_DONE)
   {
     finalizeEntryInsert();
-    return std::unexpected(Error{
+    return std::unexpected(db::Error{
       sqlite3_errcode(m_db),
       sqlite3_errmsg(m_db)});
   }
@@ -157,7 +157,7 @@ auto Database::deleteEntry(const std::int64_t indexId, const Entry& entry) -> st
   return {};
 }
 
-auto Database::updateEntry(const std::int64_t indexId, const Entry& entry) -> std::expected<void, Error>
+auto Database::updateEntry(const std::int64_t indexId, const Entry& entry) -> std::expected<void, db::Error>
 {
   // size_bytes > last_written_at > index_id > relative_path
   sqlite3_bind_int64(m_stmtEntryUpdate, 1, entry.size);
@@ -167,7 +167,7 @@ auto Database::updateEntry(const std::int64_t indexId, const Entry& entry) -> st
 
   if (sqlite3_step(m_stmtEntryUpdate) != SQLITE_DONE)
   {
-    return std::unexpected(Error{
+    return std::unexpected(db::Error{
       sqlite3_errcode(m_db),
       sqlite3_errmsg(m_db)});
   }
@@ -178,14 +178,14 @@ auto Database::updateEntry(const std::int64_t indexId, const Entry& entry) -> st
   return {};
 }
 
-auto Database::findEntries(const std::string& query, const std::optional<std::int64_t> indexId) -> std::expected<std::vector<FindResult>, Error>
+auto Database::findEntries(const std::string& query, const std::optional<std::int64_t> indexId) -> std::expected<std::vector<db::FindResult>, db::Error>
 {
   if (indexId == std::nullopt || !indexId.has_value())
     prepareEntrySearchNoId(query);
   else
     prepareEntrySearch(query, *indexId);
 
-  std::vector<FindResult> result{};
+  std::vector<db::FindResult> result{};
 
   int rc;
   while ((rc = sqlite3_step(m_stmtEntrySearch)) == SQLITE_ROW)
@@ -197,7 +197,7 @@ auto Database::findEntries(const std::string& query, const std::optional<std::in
 
     const std::uintmax_t size = sqlite3_column_int64(m_stmtEntrySearch, 2);
 
-    result.emplace_back(FindResult{
+    result.emplace_back(db::FindResult{
       path,
       type == 0 ? Entry::EntryType::FILE : Entry::EntryType::DIRECTORY,
       size
@@ -206,7 +206,7 @@ auto Database::findEntries(const std::string& query, const std::optional<std::in
 
   if (rc != SQLITE_DONE)
   {
-    return std::unexpected(Error{
+    return std::unexpected(db::Error{
       sqlite3_errcode(m_db),
       sqlite3_errmsg(m_db)});
   }
@@ -247,6 +247,43 @@ void Database::prepareEntrySearch(const std::string& query, const std::int64_t i
   sqlite3_bind_text(m_stmtEntrySearch, 4, newQuery.c_str(), -1, SQLITE_TRANSIENT);
 }
 
+auto Database::showIndex(const std::int64_t indexId) -> std::expected<db::ShowIndexResult, db::Error>
+{
+  prepareIndexShow(indexId);
+
+  if (sqlite3_step(m_stmtIndexShow) != SQLITE_ROW)
+  {
+    return std::unexpected(db::Error{
+    sqlite3_errcode(m_db),
+    sqlite3_errmsg(m_db)});
+  }
+
+  const std::int64_t id = sqlite3_column_int64(m_stmtIndexShow, 0);
+
+  const unsigned char* pathText = sqlite3_column_text(m_stmtIndexShow, 1);
+  const fs::path path = pathText ? fs::path(reinterpret_cast<const char*>(pathText)) : fs::path{};
+
+  const std::int64_t createdAt = sqlite3_column_int64(m_stmtIndexShow, 2);
+
+  const std::int64_t lastScannedAt = sqlite3_column_int64(m_stmtIndexShow, 3);
+
+  finalizeIndexShow();
+
+  return db::ShowIndexResult{id, path, toFileTime(createdAt), toFileTime(lastScannedAt)};
+}
+
+void Database::prepareIndexShow(const std::int64_t indexId)
+{
+  sqlite3_prepare_v2(
+    m_db,
+    "SELECT * FROM indexes WHERE id = ?",
+    -1,
+    &m_stmtIndexShow,
+    nullptr);
+
+  sqlite3_bind_int64(m_stmtIndexShow, 1, indexId);
+}
+
 void Database::finalizeIndexInsert()
 {
   if (m_stmtIndexInsert != nullptr)
@@ -280,6 +317,15 @@ void Database::finalizeEntryUpdate()
   {
     sqlite3_finalize(m_stmtEntryUpdate);
     m_stmtEntryUpdate = nullptr;
+  }
+}
+
+void Database::finalizeIndexShow()
+{
+  if (m_stmtIndexShow != nullptr)
+  {
+    sqlite3_finalize(m_stmtIndexShow);
+    m_stmtIndexShow = nullptr;
   }
 }
 

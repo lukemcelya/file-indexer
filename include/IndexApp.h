@@ -9,7 +9,6 @@
 
 namespace fs = std::filesystem;
 
-
 class IndexApp
 {
 private:
@@ -31,12 +30,15 @@ public:
   IndexApp() = default;
   explicit IndexApp(const std::string& dbPath);
 
-  [[nodiscard]]bool isIndexed(const fs::path& path) const;
   bool createIndex(const fs::path& path);
   std::expected<RescanStats, std::string> rescanIndex(const fs::path& path);
-  std::vector<Database::FindResult> findAllEntries(const std::string& query);
+  std::vector<db::FindResult> findAllEntries(const std::string& query);
+  std::expected<db::ShowIndexResult, std::string> showIndex(std::int64_t id);
 
 private:
+  [[nodiscard]] bool isIndexed(const fs::path& path) const;
+  [[nodiscard]] bool isIndexed(std::int64_t id) const;
+
   static bool isEntryChanged(const Entry& oldEntry, const Entry& newEntry);
   static fs::path normalizePath(const fs::path& path);
 };
