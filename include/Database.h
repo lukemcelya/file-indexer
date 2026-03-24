@@ -39,7 +39,7 @@ public:
   std::expected<std::int64_t, db::Error> insertIndex(const Index& index);
   void prepareEntryInsert();
   void prepareEntryDelete();
-  void prepareEntryUpdate();
+  void prepareEntryUpdate(); x
   std::expected<void, db::Error> insertEntry(std::int64_t indexId, const Entry& entry);
   std::expected<void, db::Error> deleteEntry(std::int64_t indexId, const Entry& entry);
   std::expected<void, db::Error> updateEntry(std::int64_t indexId, const Entry& entry);
