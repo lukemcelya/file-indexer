@@ -160,7 +160,9 @@ auto Database::deleteEntry(const std::int64_t indexId, const Entry& entry) -> st
 auto Database::updateEntry(const std::int64_t indexId, const Entry& entry) -> std::expected<void, db::Error>
 {
   // size_bytes > last_written_at > index_id > relative_path
-  sqlite3_bind_int64(m_stmtEntryUpdate, 1, entry.size);
+  const std::int64_t fileSize = toSqliteFileSize(entry.size);
+
+  sqlite3_bind_int64(m_stmtEntryUpdate, 1, fileSize);
   sqlite3_bind_int64(m_stmtEntryUpdate, 2, toUnixTime(entry.lastWrittenAt));
   sqlite3_bind_int64(m_stmtEntryUpdate, 3, indexId);
   sqlite3_bind_text(m_stmtEntryUpdate, 4, entry.path.string().c_str(), -1, SQLITE_TRANSIENT);
@@ -269,7 +271,7 @@ auto Database::showIndex(const std::int64_t indexId) -> std::expected<db::ShowIn
 
   finalizeIndexShow();
 
-  return db::ShowIndexResult{id, path, toFileTime(createdAt), toFileTime(lastScannedAt)};
+  return db::ShowIndexResult{id, path, createdAt, lastScannedAt};
 }
 
 void Database::prepareIndexShow(const std::int64_t indexId)
@@ -346,7 +348,7 @@ std::vector<Index> Database::loadIndexes()
 
     const std::int64_t lastScannedAt = sqlite3_column_int64(m_stmtIndexInsert, 3);
 
-    indexes.emplace_back(Index{id, std::move(path), createdAt, lastScannedAt});
+    indexes.emplace_back(id, std::move(path), createdAt, lastScannedAt);
   }
 
   finalizeIndexInsert();
@@ -440,4 +442,14 @@ fs::file_time_type Database::toFileTime(const std::int64_t time)
   const auto sysTime = std::chrono::system_clock::time_point{std::chrono::seconds{time}};
 
   return fileNow + (sysTime - sysNow);
+}
+
+std::int64_t Database::toSqliteFileSize(const std::uintmax_t size)
+{
+  if (size > static_cast<std::uintmax_t>(std::numeric_limits<std::int64_t>::max()))
+    {
+      throw std::overflow_error("File size does not fit in sqlite3_int64");
+    }
+
+  return static_cast<std::int64_t>(size);
 }

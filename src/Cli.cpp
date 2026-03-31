@@ -1,4 +1,7 @@
 #include "Cli.h"
+
+#include <charconv>
+
 #include "IndexApp.h"
 #include "Database.h"
 
@@ -180,6 +183,7 @@ void Cli::printUsage()
   std::cout << "Usage:\n"
             << "    index        <directory>\n"
             << "    rescan       <directory>\n"
+            << "    show         <directory>\n"
             << "    find         <query>\n"
             << "    duplicates\n"
             << "    stats\n"

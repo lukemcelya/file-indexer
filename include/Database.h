@@ -10,7 +10,6 @@
 #include <expected>
 #include <optional>
 #include <unordered_map>
-#include <ostream>
 
 namespace fs = std::filesystem;
 
@@ -39,7 +38,7 @@ public:
   std::expected<std::int64_t, db::Error> insertIndex(const Index& index);
   void prepareEntryInsert();
   void prepareEntryDelete();
-  void prepareEntryUpdate(); x
+  void prepareEntryUpdate();
   std::expected<void, db::Error> insertEntry(std::int64_t indexId, const Entry& entry);
   std::expected<void, db::Error> deleteEntry(std::int64_t indexId, const Entry& entry);
   std::expected<void, db::Error> updateEntry(std::int64_t indexId, const Entry& entry);
@@ -70,4 +69,5 @@ private:
   // Static helpers (convert int64_t time <> file_time_type)
   static std::int64_t toUnixTime(const fs::file_time_type& time);
   static fs::file_time_type toFileTime(std::int64_t time);
+  static std::int64_t toSqliteFileSize(std::uintmax_t size);
 };

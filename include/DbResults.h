@@ -32,7 +32,7 @@ namespace db
   {
     std::int64_t id;
     fs::path root;
-    fs::file_time_type createdAt;
-    fs::file_time_type lastScannedAt;
+    std::int64_t createdAt;
+    std::int64_t lastScannedAt;
   };
 }
