@@ -144,7 +144,7 @@ int Cli::handleCompare(const std::vector<std::string>& args)
   return 0;
 }
 
-int Cli::handleShow(const std::vector<std::string>& args, bool isRepl) const
+int Cli::handleShow(const std::vector<std::string>& args, const bool isRepl) const
 {
   const std::size_t startIndex = isRepl ? 1 : 2; // On REPL, 0th arg is command instead of process
   const auto indexId = parseIndexFlag(args, startIndex);
@@ -159,6 +159,7 @@ int Cli::handleShow(const std::vector<std::string>& args, bool isRepl) const
   if (!result)
   {
     std::cout << result.error() << "\n";
+    return 1;
   }
 
   printShowIndex(result.value());
