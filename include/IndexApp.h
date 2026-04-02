@@ -3,6 +3,7 @@
 #include "Index.h"
 #include "Database.h"
 #include "Scanner.h"
+#include "Duplicates.h"
 
 #include <filesystem>
 #include <string>
@@ -34,6 +35,7 @@ public:
   std::expected<RescanStats, std::string> rescanIndex(const fs::path& path);
   std::vector<db::FindResult> findAllEntries(const std::string& query);
   std::expected<db::ShowIndexResult, std::string> showIndex(std::int64_t id);
+  std::expected<std::vector<dup::DuplicateGroup>, std::string> findDuplicates(std::int64_t id);
 
 private:
   [[nodiscard]] bool isIndexed(const fs::path& path) const;

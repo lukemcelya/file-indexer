@@ -7,6 +7,8 @@
 #include <string>
 #include <algorithm>
 
+#include "Duplicates.h"
+
 namespace fs = std::filesystem;
 
 IndexApp::IndexApp(const std::string& dbPath)
@@ -28,7 +30,7 @@ bool IndexApp::createIndex(const fs::path& path)
 
   if (!indexId)
   {
-    Cli::printError(indexId.error());
+    Cli::printDbError(indexId.error());
     return false;
   }
   index.setId(indexId.value());
@@ -42,7 +44,7 @@ bool IndexApp::createIndex(const fs::path& path)
 
   if (!entryResult)
   {
-    Cli::printError(entryResult.error());
+    Cli::printDbError(entryResult.error());
     return false;
   }
 
@@ -67,7 +69,7 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, s
   if (currentIndex == m_indexStore.end())
     return std::unexpected("Directory not indexed");
 
-  std::unordered_map<std::string, Entry> existing = m_database.loadEntriesFromIndex(currentIndex->id());
+  auto existing = m_database.loadEntriesFromIndex(currentIndex->id());
   RescanStats stats{};
 
   m_database.beginTransaction();
@@ -105,7 +107,7 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, s
 
   if (!scanResult)
   {
-    Cli::printError(scanResult.error());
+    Cli::printDbError(scanResult.error());
     return std::unexpected("Index not found");
   }
 
@@ -114,7 +116,7 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, s
     m_database.prepareEntryDelete();
     if (auto r = m_database.deleteEntry(currentIndex->id(), oldEntry); !r)
     {
-      Cli::printError(r.error());
+      Cli::printDbError(r.error());
       return std::unexpected("Deletion not completed");
     }
 
@@ -134,7 +136,7 @@ std::vector<db::FindResult> IndexApp::findAllEntries(const std::string& query)
   const auto result = m_database.findEntries(query);
   if (!result)
   {
-    Cli::printError(result.error());
+    Cli::printDbError(result.error());
     return {};
   }
 
@@ -151,6 +153,18 @@ std::expected<db::ShowIndexResult, std::string> IndexApp::showIndex(const std::i
     return std::unexpected(result.error().message);
 
   return *result;
+}
+
+std::expected<std::vector<dup::DuplicateGroup>, std::string> IndexApp::findDuplicates(const std::int64_t id)
+{
+  if (!isIndexed(id))
+    return std::unexpected("Index not found");
+
+  const auto entries = m_database.findPotentialDuplicates(id);
+  if (!entries)
+    return std::unexpected(entries.error().message);
+
+  return dup::find(*entries);
 }
 
 bool IndexApp::isIndexed(const fs::path& path) const

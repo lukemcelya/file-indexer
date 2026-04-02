@@ -188,8 +188,8 @@ auto Database::findEntries(const std::string& query, const std::optional<std::in
     prepareEntrySearch(query, *indexId);
 
   std::vector<db::FindResult> result{};
+  int rc{};
 
-  int rc;
   while ((rc = sqlite3_step(m_stmtEntrySearch)) == SQLITE_ROW)
   {
     const unsigned char* pathText = sqlite3_column_text(m_stmtEntrySearch, 0);
@@ -255,9 +255,13 @@ auto Database::showIndex(const std::int64_t indexId) -> std::expected<db::ShowIn
 
   if (sqlite3_step(m_stmtIndexShow) != SQLITE_ROW)
   {
-    return std::unexpected(db::Error{
-    sqlite3_errcode(m_db),
-    sqlite3_errmsg(m_db)});
+    db::Error error = {
+      sqlite3_errcode(m_db),
+    sqlite3_errmsg(m_db)
+    };
+
+    finalizeIndexShow();
+    return std::unexpected(error);
   }
 
   const std::int64_t id = sqlite3_column_int64(m_stmtIndexShow, 0);
@@ -284,6 +288,67 @@ void Database::prepareIndexShow(const std::int64_t indexId)
     nullptr);
 
   sqlite3_bind_int64(m_stmtIndexShow, 1, indexId);
+}
+
+auto Database::findPotentialDuplicates(const std::int64_t indexId) -> std::expected<std::vector<fs::path>, db::Error>
+{
+  const auto rootResult = indexPath(indexId);
+  if (!rootResult)
+    return std::unexpected(rootResult.error());
+
+  prepareDuplicateSearch(indexId);
+
+  std::vector<fs::path> paths;
+  int rc{};
+  while ((rc = sqlite3_step(m_stmtDuplicateSearch)) == SQLITE_ROW)
+  {
+    const unsigned char* pathText = sqlite3_column_text(m_stmtDuplicateSearch, 0);
+    const fs::path path = pathText ? fs::path(reinterpret_cast<const char*>(pathText)) : fs::path{};
+
+    paths.emplace_back(*rootResult / path);
+  }
+
+  if (rc != SQLITE_DONE)
+  {
+    db::Error error = {
+      sqlite3_errcode(m_db),
+      sqlite3_errmsg(m_db)
+    };
+
+    finalizeDuplicateSearch();
+    return std::unexpected(error);
+  }
+
+  finalizeDuplicateSearch();
+
+  return paths;
+}
+
+void Database::prepareDuplicateSearch(const std::int64_t indexId)
+{
+  const std::string query = "SELECT relative_path "
+                      "FROM entries "
+                      "WHERE index_id = ? "
+                      "  AND is_directory = 0 "
+                      "  AND size_bytes IN ("
+                      "    SELECT size_bytes "
+                      "    FROM entries "
+                      "    WHERE index_id = ? "
+                      "      AND is_directory = 0 "
+                      "    GROUP BY size_bytes "
+                      "    HAVING COUNT(*) > 1 "
+                      ") "
+                      "ORDER BY size_bytes;";
+  sqlite3_prepare_v2(
+    m_db,
+    query.c_str(),
+    -1,
+    &m_stmtDuplicateSearch,
+    nullptr
+  );
+
+  sqlite3_bind_int64(m_stmtDuplicateSearch, 1, indexId);
+  sqlite3_bind_int64(m_stmtDuplicateSearch, 2, indexId);
 }
 
 void Database::finalizeIndexInsert()
@@ -328,6 +393,24 @@ void Database::finalizeIndexShow()
   {
     sqlite3_finalize(m_stmtIndexShow);
     m_stmtIndexShow = nullptr;
+  }
+}
+
+void Database::finalizeDuplicateSearch()
+{
+  if (m_stmtDuplicateSearch != nullptr)
+  {
+    sqlite3_finalize(m_stmtDuplicateSearch);
+    m_stmtDuplicateSearch = nullptr;
+  }
+}
+
+void Database::finalizeIndexPath()
+{
+  if (m_stmtIndexPath != nullptr)
+  {
+    sqlite3_finalize(m_stmtIndexPath);
+    m_stmtIndexPath = nullptr;
   }
 }
 
@@ -398,6 +481,38 @@ std::unordered_map<std::string, Entry> Database::loadEntriesFromIndex(const std:
 
   finalizeEntryInsert();
   return entries;
+}
+
+std::expected<fs::path, db::Error> Database::indexPath(const std::int64_t indexId)
+{
+  prepareIndexPath(indexId);
+
+  if (sqlite3_step(m_stmtIndexPath) != SQLITE_ROW)
+  {
+    return std::unexpected(db::Error{
+    sqlite3_errcode(m_db),
+    sqlite3_errmsg(m_db)});
+  }
+
+  const unsigned char* pathText = sqlite3_column_text(m_stmtIndexPath, 0);
+  const fs::path path = pathText ? fs::path(reinterpret_cast<const char*>(pathText)) : fs::path{};
+
+  finalizeIndexPath();
+
+  return path;
+}
+
+void Database::prepareIndexPath(const std::int64_t indexId)
+{
+  sqlite3_prepare_v2(
+    m_db,
+    "SELECT root_path FROM indexes WHERE id = ?",
+    -1,
+    &m_stmtIndexPath,
+    nullptr
+    );
+
+  sqlite3_bind_int64(m_stmtIndexPath, 1, indexId);
 }
 
 void Database::initializeSchema()

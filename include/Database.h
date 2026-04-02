@@ -17,12 +17,14 @@ class Database
 {
 private:
   sqlite3* m_db = nullptr;\
+  sqlite3_stmt* m_stmtIndexPath{};
   sqlite3_stmt* m_stmtIndexInsert{};
   sqlite3_stmt* m_stmtIndexShow{};
   sqlite3_stmt* m_stmtEntryInsert{};
   sqlite3_stmt* m_stmtEntryDelete{};
   sqlite3_stmt* m_stmtEntryUpdate{};
   sqlite3_stmt* m_stmtEntrySearch{};
+  sqlite3_stmt* m_stmtDuplicateSearch{};
 
 public:
   Database() : Database("indexes.db") {};
@@ -52,16 +54,24 @@ public:
   std::expected<db::ShowIndexResult, db::Error> showIndex(std::int64_t indexId);
   void prepareIndexShow(std::int64_t indexId);
 
+  // Duplicate handling
+  std::expected<std::vector<fs::path>, db::Error> findPotentialDuplicates(std::int64_t indexId);
+  void prepareDuplicateSearch(std::int64_t indexId);
+
   // Sqlite3_stmt* cleanup
   void finalizeIndexInsert();
   void finalizeEntryInsert();
   void finalizeEntryDelete();
   void finalizeEntryUpdate();
   void finalizeIndexShow();
+  void finalizeDuplicateSearch();
+  void finalizeIndexPath();
 
   // Index and Entry loading
   std::vector<Index> loadIndexes();
   std::unordered_map<std::string, Entry> loadEntriesFromIndex(std::int64_t indexId);
+  std::expected<fs::path, db::Error> indexPath(std::int64_t indexId);
+  void prepareIndexPath(std::int64_t indexId);
 
 private:
   void initializeSchema();

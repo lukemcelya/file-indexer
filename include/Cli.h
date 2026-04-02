@@ -15,7 +15,7 @@ public:
 
   int run(int argc, const char* argv[]);
 
-  static void printError(const db::Error& error);
+  static void printDbError(const db::Error& error);
 
 private:
   int handleCommand(const std::vector<std::string>& args, bool isRepl);
@@ -24,7 +24,7 @@ private:
   int handleIndex(std::string_view dir);
   int handleRescan(std::string_view dir);
   [[nodiscard]] int handleFind(const std::vector<std::string>& args) const;
-  int handleDuplicate(const std::vector<std::string>& args);
+  int handleDuplicate(const std::vector<std::string>& args, bool isRepl);
   int handleStats(const std::vector<std::string>& args);
   int handleCompare(const std::vector<std::string>& args);
   [[nodiscard]] int handleShow(const std::vector<std::string>& args, bool isRepl) const;
@@ -33,5 +33,6 @@ private:
   static void printUsage();
   static void printFindResults(const std::vector<db::FindResult>& findResults);
   static void printShowIndex(const db::ShowIndexResult& index);
+  static void printDuplicates(const std::vector<dup::DuplicateGroup>& duplicates);
   static std::optional<std::int64_t> parseIndexFlag(const std::vector<std::string>& args, std::size_t startIndex);
 };

@@ -33,7 +33,7 @@ int Cli::run(const int argc, const char* argv[])
   return rc;
 }
 
-void Cli::printError(const db::Error& error)
+void Cli::printDbError(const db::Error& error)
 {
   std::cerr << error << "\n";
 }
@@ -56,7 +56,7 @@ int Cli::handleCommand(const std::vector<std::string>& args, const bool isRepl)
   if (command == "find")
     return handleFind(args);
   if (command == "duplicate")
-    return handleDuplicate(args);
+    return handleDuplicate(args, isRepl);
   if (command == "stats")
     return handleStats(args);
   if (command == "compare")
@@ -129,8 +129,26 @@ int Cli::handleFind(const std::vector<std::string>& args) const
   return 0;
 }
 
-int Cli::handleDuplicate(const std::vector<std::string>& args)
+int Cli::handleDuplicate(const std::vector<std::string>& args, const bool isRepl)
 {
+  const std::size_t startIndex = isRepl ? 1 : 2;
+  const auto indexId = parseIndexFlag(args, startIndex);
+
+  if (!indexId)
+  {
+    std::cout << "No valid index\n";
+    return 1;
+  }
+
+  auto result = m_indexApp.findDuplicates(*indexId);
+  if (!result)
+  {
+    std::cout << result.error() << "\n";
+    return 1;
+  }
+
+  printDuplicates(result.value());
+
   return 0;
 }
 
@@ -209,6 +227,25 @@ void Cli::printShowIndex(const db::ShowIndexResult& index)
             << "Path: " << index.root << "\n"
             << "Created at: " << index.createdAt << "\n"
             << "Last scanned at: " << index.lastScannedAt << "\n";
+}
+
+void Cli::printDuplicates(const std::vector<dup::DuplicateGroup>& duplicates)
+{
+  if (duplicates.empty())
+    std::cout << "No duplicates found\n";
+
+  std::cout << "Duplicates:\n-----------\n";
+
+  for (const auto& [hash, files] : duplicates)
+  {
+    if (!files.empty())
+      std::cout << "Hash: " << hash << "\n";
+
+    for (const auto& file : files)
+    {
+      std::cout << "  " << file << "\n";
+    }
+  }
 }
 
 std::optional<std::int64_t> Cli::parseIndexFlag(const std::vector<std::string>& args, const std::size_t startIndex)
