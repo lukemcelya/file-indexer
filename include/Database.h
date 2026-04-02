@@ -20,10 +20,12 @@ private:
   sqlite3_stmt* m_stmtIndexPath{};
   sqlite3_stmt* m_stmtIndexInsert{};
   sqlite3_stmt* m_stmtIndexShow{};
+  sqlite3_stmt* m_stmtIndexLoad{};
   sqlite3_stmt* m_stmtEntryInsert{};
   sqlite3_stmt* m_stmtEntryDelete{};
   sqlite3_stmt* m_stmtEntryUpdate{};
   sqlite3_stmt* m_stmtEntrySearch{};
+  sqlite3_stmt* m_stmtEntryLoad{};
   sqlite3_stmt* m_stmtDuplicateSearch{};
 
 public:
@@ -31,16 +33,19 @@ public:
   explicit Database(const fs::path& dbPath);
   ~Database();
 
-  // Transaction handling
-  bool exec(std::string_view query);
-  void beginTransaction();
-  void commit();
+  // Clean up
+  void finalizeRescanStatement();
 
   // Scan and rescan functions
+  void finishIndex();
+  void beginRescan();
+  void finishRescan();
   std::expected<std::int64_t, db::Error> insertIndex(const Index& index);
   void prepareEntryInsert();
   void prepareEntryDelete();
   void prepareEntryUpdate();
+  void beginEntryInsert();
+  void finishEntryInsert();
   std::expected<void, db::Error> insertEntry(std::int64_t indexId, const Entry& entry);
   std::expected<void, db::Error> deleteEntry(std::int64_t indexId, const Entry& entry);
   std::expected<void, db::Error> updateEntry(std::int64_t indexId, const Entry& entry);
@@ -49,6 +54,7 @@ public:
   std::expected<std::vector<db::FindResult>, db::Error> findEntries(const std::string& query, std::optional<std::int64_t> indexId = std::nullopt);
   void prepareEntrySearchNoId(const std::string& query);
   void prepareEntrySearch(const std::string& query, std::int64_t indexId);
+  void finishFind();
 
   // Show function
   std::expected<db::ShowIndexResult, db::Error> showIndex(std::int64_t indexId);
@@ -57,15 +63,6 @@ public:
   // Duplicate handling
   std::expected<std::vector<fs::path>, db::Error> findPotentialDuplicates(std::int64_t indexId);
   void prepareDuplicateSearch(std::int64_t indexId);
-
-  // Sqlite3_stmt* cleanup
-  void finalizeIndexInsert();
-  void finalizeEntryInsert();
-  void finalizeEntryDelete();
-  void finalizeEntryUpdate();
-  void finalizeIndexShow();
-  void finalizeDuplicateSearch();
-  void finalizeIndexPath();
 
   // Index and Entry loading
   std::vector<Index> loadIndexes();
@@ -76,8 +73,17 @@ public:
 private:
   void initializeSchema();
 
+  // Transaction handling
+  bool exec(std::string_view query);
+  void beginTransaction();
+  void commit();
+
   // Static helpers (convert int64_t time <> file_time_type)
   static std::int64_t toUnixTime(const fs::file_time_type& time);
   static fs::file_time_type toFileTime(std::int64_t time);
   static std::int64_t toSqliteFileSize(std::uintmax_t size);
+
+  // Sqlite3_stmt* cleanup
+  void finalizeAll();
+  static void finalizeStatement(sqlite3_stmt* stmt);
 };

@@ -23,8 +23,6 @@ bool IndexApp::createIndex(const fs::path& path)
   if (!fs::is_directory(indexPath) || isIndexed(indexPath))
     return false;
 
-  m_database.beginTransaction();
-
   Index index { indexPath };
   auto indexId = m_database.insertIndex(index);
 
@@ -35,7 +33,8 @@ bool IndexApp::createIndex(const fs::path& path)
   }
   index.setId(indexId.value());
 
-  m_database.prepareEntryInsert();
+  m_database.finishIndex();
+  m_database.beginEntryInsert();
 
   auto entryResult = scanner::scan(path, [&](const Entry& entry)
   {
@@ -48,8 +47,7 @@ bool IndexApp::createIndex(const fs::path& path)
     return false;
   }
 
-  m_database.finalizeEntryInsert();
-  m_database.commit();
+  m_database.finishEntryInsert();
 
   m_indexStore.push_back(std::move(index));
   return true;
@@ -72,7 +70,7 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, s
   auto existing = m_database.loadEntriesFromIndex(currentIndex->id());
   RescanStats stats{};
 
-  m_database.beginTransaction();
+  m_database.beginRescan();
 
   auto scanResult = scanner::scan(path, [&](const Entry& entry) -> std::expected<void, db::Error>
   {
@@ -123,10 +121,7 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, s
     ++stats.deleted;
   }
 
-  m_database.finalizeEntryInsert();
-  m_database.finalizeEntryDelete();
-  m_database.finalizeEntryUpdate();
-  m_database.commit();
+  m_database.finishRescan();
 
   return stats;
 }
@@ -140,6 +135,7 @@ std::vector<db::FindResult> IndexApp::findAllEntries(const std::string& query)
     return {};
   }
 
+  m_database.finishFind();
   return *result;
 }
 
