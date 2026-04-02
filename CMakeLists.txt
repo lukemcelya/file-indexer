@@ -12,6 +12,7 @@ add_library(fileindexer_core
         src/Index.cpp
         src/Database.cpp
         src/Hasher.cpp
+        src/Duplicates.cpp
         external/sqlite/sqlite3.c
 )
 
