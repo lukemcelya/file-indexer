@@ -11,12 +11,14 @@ add_library(fileindexer_core
         src/Cli.cpp
         src/Index.cpp
         src/Database.cpp
+        src/Hasher.cpp
         external/sqlite/sqlite3.c
 )
 
 target_include_directories(fileindexer_core PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/external/sqlite
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/PicoSHA2
 )
 
 add_executable(file-indexer
