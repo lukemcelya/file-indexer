@@ -85,5 +85,5 @@ private:
 
   // Sqlite3_stmt* cleanup
   void finalizeAll();
-  static void finalizeStatement(sqlite3_stmt* stmt);
+  static void finalizeStatement(sqlite3_stmt*& stmt);
 };

@@ -567,7 +567,7 @@ void Database::finalizeAll()
   finalizeStatement(m_stmtDuplicateSearch);
 }
 
-void Database::finalizeStatement(sqlite3_stmt* stmt)
+void Database::finalizeStatement(sqlite3_stmt*& stmt)
 {
   if (stmt != nullptr)
   {
