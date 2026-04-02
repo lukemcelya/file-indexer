@@ -5,5 +5,5 @@
 
 namespace hashing
 {
-  std::string sha256FileHex(std::ifstream& in);
+  std::string sha256FileHex(std::istream& in);
 }
