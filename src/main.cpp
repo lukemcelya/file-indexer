@@ -1,11 +1,16 @@
 #include "IndexApp.h"
 #include "Cli.h"
+#include "PlatformPaths.h"
 
 #include <iostream>
 
+
 int main(const int argc, const char* argv[])
 {
-  auto dbResult = Database::open("data/file-index.db");
+  auto exeDir = platform::executableDir();
+  auto dbPath = exeDir / "data" / "file-index.db";
+
+  auto dbResult = Database::open(dbPath);
   if (!dbResult)
   {
     std::cerr << dbResult.error().message << "\n";
