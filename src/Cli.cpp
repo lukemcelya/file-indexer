@@ -189,13 +189,13 @@ std::vector<std::string> Cli::tokenize(const std::string& input)
 void Cli::printUsage()
 {
   std::cout << "Usage:\n"
-            << "    index               <directory>\n"
-            << "    rescan              <directory>\n"
-            << "    show                <directory>\n"
-            << "    find                <query>\n"
-            << "    duplicates --index  <id>\n"
+            << "    index                   <directory>\n"
+            << "    rescan                  <directory>\n"
+            << "    show                    <directory>\n"
+            << "    find                    <query>\n"
+            << "    duplicates --index      <id>\n"
             << "    stats\n"
-            << "    compare             <scan1> <scan2>\n";
+            << "    compare                 <scan1> <scan2>\n";
 }
 
 void Cli::printFindResults(const std::vector<db::FindResult>& findResults)
@@ -214,8 +214,8 @@ void Cli::printShowIndex(const db::ShowIndexResult& index)
 {
   std::cout << "ID: " << index.id << "\n"
             << "Path: " << index.root << "\n"
-            << "Created at: " << index.createdAt << "\n"
-            << "Last scanned at: " << index.lastScannedAt << "\n";
+            << "Created at: " << formatTimestamp(index.createdAt) << "\n"
+            << "Last scanned at: " << formatTimestamp(index.lastScannedAt) << "\n";
 }
 
 void Cli::printDuplicates(const std::vector<dup::DuplicateGroup>& duplicates)
@@ -264,4 +264,12 @@ std::optional<std::int64_t> Cli::parseIndexFlag(const std::vector<std::string>& 
     return std::nullopt;
 
   return result;
+}
+
+std::string Cli::formatTimestamp(const std::int64_t timestamp)
+{
+  using namespace std::chrono;
+
+  auto tp = floor<seconds>(system_clock::time_point{seconds(timestamp)});
+  return std::format("{:%Y-%m-%d %H:%M:%S}", tp);
 }
