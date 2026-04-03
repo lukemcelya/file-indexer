@@ -7,25 +7,26 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Core library
 add_library(fileindexer_core
-        src/IndexApp.cpp
-        src/Cli.cpp
-        src/Index.cpp
-        src/Database.cpp
-        src/Hasher.cpp
-        src/Duplicates.cpp
-        external/sqlite/sqlite3.c
+    src/IndexApp.cpp
+    src/Cli.cpp
+    src/Index.cpp
+    src/Database.cpp
+    src/Hasher.cpp
+    src/Duplicates.cpp
+    src/PlatformPaths.cpp
+    external/sqlite/sqlite3.c
 )
 
 target_include_directories(fileindexer_core PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/sqlite
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/PicoSHA2
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/sqlite
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/PicoSHA2
 )
 
 add_executable(file-indexer
-        src/main.cpp
+    src/main.cpp
 )
 
 target_link_libraries(file-indexer PRIVATE
-        fileindexer_core
+    fileindexer_core
 )
