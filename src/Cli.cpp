@@ -4,6 +4,7 @@
 
 #include "IndexApp.h"
 #include "Database.h"
+#include "AppResults.h"
 
 #include <filesystem>
 #include <iostream>
@@ -26,18 +27,8 @@ int Cli::run(const int argc, const char* argv[])
   for (std::size_t i{1}; i < argc; ++i)
     args.emplace_back(argv[i]);
 
-  const int rc = handleCommand(args, false);
-  if (rc == 1)
-    printUsage();
-
-  return rc;
+  return handleCommand(args, false);
 }
-
-void Cli::printDbError(const db::Error& error)
-{
-  std::cerr << error << "\n";
-}
-
 
 int Cli::handleCommand(const std::vector<std::string>& args, const bool isRepl)
 {
@@ -85,8 +76,7 @@ void Cli::repl()
     if (args.empty())
       continue;
 
-    if (handleCommand(args, true) == 1)
-      printUsage();
+    handleCommand(args, true);
   }
 }
 
@@ -104,7 +94,7 @@ int Cli::handleRescan(const std::string_view dir)
   const auto result = m_indexApp.rescanIndex(dir);
   if (!result)
   {
-    std::cout << result.error() << "\n";
+    printError(result.error());
     return 1;
   }
 
@@ -119,13 +109,13 @@ int Cli::handleRescan(const std::string_view dir)
 int Cli::handleFind(const std::vector<std::string>& args) const
 {
   const auto result = m_indexApp.findAllEntries(args[1]);
-
-  if (result.empty())
+  if (!result)
   {
+    printError(result.error());
     return 1;
   }
 
-  printFindResults(result);
+  printFindResults(*result);
   return 0;
 }
 
@@ -133,7 +123,6 @@ int Cli::handleDuplicate(const std::vector<std::string>& args, const bool isRepl
 {
   const std::size_t startIndex = isRepl ? 1 : 2;
   const auto indexId = parseIndexFlag(args, startIndex);
-
   if (!indexId)
   {
     std::cout << "No valid index\n";
@@ -143,7 +132,7 @@ int Cli::handleDuplicate(const std::vector<std::string>& args, const bool isRepl
   auto result = m_indexApp.findDuplicates(*indexId);
   if (!result)
   {
-    std::cout << result.error() << "\n";
+    printError(result.error());
     return 1;
   }
 
@@ -176,7 +165,7 @@ int Cli::handleShow(const std::vector<std::string>& args, const bool isRepl) con
   auto result = m_indexApp.showIndex(*indexId);
   if (!result)
   {
-    std::cout << result.error() << "\n";
+    printError(result.error());
     return 1;
   }
 
@@ -246,6 +235,17 @@ void Cli::printDuplicates(const std::vector<dup::DuplicateGroup>& duplicates)
       std::cout << "  " << file << "\n";
     }
   }
+}
+
+void Cli::printError(const app::Error& error)
+{
+  if (error.type == app::Error::Type::Database)
+  {
+    std::cerr << error.message << "\n"
+              << "SQLite error (" << error.dbError.value().code << ") " << error.dbError.value().message << "\n";
+  }
+  else
+    std::cerr << error.message << "\n";
 }
 
 std::optional<std::int64_t> Cli::parseIndexFlag(const std::vector<std::string>& args, const std::size_t startIndex)

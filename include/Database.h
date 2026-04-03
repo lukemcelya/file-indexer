@@ -16,7 +16,7 @@ namespace fs = std::filesystem;
 class Database
 {
 private:
-  sqlite3* m_db = nullptr;\
+  sqlite3* m_db = nullptr;
   sqlite3_stmt* m_stmtIndexPath{};
   sqlite3_stmt* m_stmtIndexInsert{};
   sqlite3_stmt* m_stmtIndexShow{};
@@ -29,59 +29,67 @@ private:
   sqlite3_stmt* m_stmtDuplicateSearch{};
 
 public:
-  Database() : Database("indexes.db") {};
-  explicit Database(const fs::path& dbPath);
+  Database() = default;
   ~Database();
 
-  // Clean up
-  void finalizeRescanStatement();
+  Database(const Database&) = delete;
+  auto operator=(const Database&) -> Database& = delete;
+
+  Database(Database&& other) noexcept;
+  auto operator=(Database&& other) noexcept -> Database&;
+
+  // Initialization
+  static std::expected<Database, db::Error> open(const fs::path& dbPath);
 
   // Scan and rescan functions
-  void finishIndex();
-  void beginRescan();
-  void finishRescan();
+  std::expected<void, db::Error> finishIndex();
+  std::expected<void, db::Error> beginRescan();
+  std::expected<void, db::Error> cancelRescan();
+  std::expected<void, db::Error> finishRescan();
   std::expected<std::int64_t, db::Error> insertIndex(const Index& index);
-  void prepareEntryInsert();
-  void prepareEntryDelete();
-  void prepareEntryUpdate();
-  void beginEntryInsert();
-  void finishEntryInsert();
+  std::expected<void, db::Error> beginEntryInsert();
+  std::expected<void, db::Error> finishEntryInsert();
   std::expected<void, db::Error> insertEntry(std::int64_t indexId, const Entry& entry);
   std::expected<void, db::Error> deleteEntry(std::int64_t indexId, const Entry& entry);
   std::expected<void, db::Error> updateEntry(std::int64_t indexId, const Entry& entry);
 
   // Find/Search functions
   std::expected<std::vector<db::FindResult>, db::Error> findEntries(const std::string& query, std::optional<std::int64_t> indexId = std::nullopt);
-  void prepareEntrySearchNoId(const std::string& query);
-  void prepareEntrySearch(const std::string& query, std::int64_t indexId);
   void finishFind();
 
   // Show function
   std::expected<db::ShowIndexResult, db::Error> showIndex(std::int64_t indexId);
-  void prepareIndexShow(std::int64_t indexId);
 
   // Duplicate handling
   std::expected<std::vector<fs::path>, db::Error> findPotentialDuplicates(std::int64_t indexId);
-  void prepareDuplicateSearch(std::int64_t indexId);
 
   // Index and Entry loading
-  std::vector<Index> loadIndexes();
-  std::unordered_map<std::string, Entry> loadEntriesFromIndex(std::int64_t indexId);
-  std::expected<fs::path, db::Error> indexPath(std::int64_t indexId);
-  void prepareIndexPath(std::int64_t indexId);
+  std::expected<std::vector<Index>, db::Error> loadIndexes();
+  std::expected<std::unordered_map<std::string, Entry>, db::Error> loadEntriesFromIndex(std::int64_t indexId);
 
 private:
-  void initializeSchema();
+  std::expected<void, db::Error> initializeSchema();
 
   // Transaction handling
-  bool exec(std::string_view query);
-  void beginTransaction();
-  void commit();
+  std::expected<void, db::Error> exec(std::string_view query);
+  std::expected<void, db::Error> prepare(sqlite3_stmt*& stmt, const char* sql);
+  std::expected<void, db::Error> beginTransaction();
+  std::expected<void, db::Error> rollback();
+  std::expected<void, db::Error> commit();
+
+  // Getter for index path on id
+  std::expected<fs::path, db::Error> indexPath(std::int64_t indexId);
+
+  // Private prepare functions (bind input values)
+  std::expected<void, db::Error> prepareEntrySearch(const std::string& query, const std::optional<std::int64_t> indexId = std::nullopt);
+  std::expected<void, db::Error> prepareIndexShow(std::int64_t indexId);
+  std::expected<void, db::Error> prepareDuplicateSearch(std::int64_t indexId);
+  std::expected<void, db::Error> prepareIndexPath(std::int64_t indexId);
 
   // Static helpers (convert int64_t time <> file_time_type)
   static std::int64_t toUnixTime(const fs::file_time_type& time);
   static fs::file_time_type toFileTime(std::int64_t time);
-  static std::int64_t toSqliteFileSize(std::uintmax_t size);
+  static std::expected<std::int64_t, db::Error> toSqliteFileSize(std::uintmax_t size);
 
   // Sqlite3_stmt* cleanup
   void finalizeAll();

@@ -4,6 +4,7 @@
 #include "Database.h"
 #include "Scanner.h"
 #include "Duplicates.h"
+#include "AppResults.h"
 
 #include <filesystem>
 #include <string>
@@ -25,17 +26,18 @@ private:
 
 private:
   Database m_database;
-  IndexStore m_indexStore;
+  IndexStore m_indexStore{};
 
 public:
-  IndexApp() = default;
-  explicit IndexApp(const std::string& dbPath);
+  explicit IndexApp(Database db);
 
-  bool createIndex(const fs::path& path);
-  std::expected<RescanStats, std::string> rescanIndex(const fs::path& path);
-  std::vector<db::FindResult> findAllEntries(const std::string& query);
-  std::expected<db::ShowIndexResult, std::string> showIndex(std::int64_t id);
-  std::expected<std::vector<dup::DuplicateGroup>, std::string> findDuplicates(std::int64_t id);
+  std::expected<void, app::Error> loadIndexStore();
+
+  std::expected<std::int64_t, app::Error> createIndex(const fs::path& path);
+  std::expected<RescanStats, app::Error> rescanIndex(const fs::path& path);
+  std::expected<std::vector<db::FindResult>, app::Error> findAllEntries(const std::string& query);
+  std::expected<db::ShowIndexResult, app::Error> showIndex(std::int64_t id);
+  std::expected<std::vector<dup::DuplicateGroup>, app::Error> findDuplicates(std::int64_t id);
 
 private:
   [[nodiscard]] bool isIndexed(const fs::path& path) const;

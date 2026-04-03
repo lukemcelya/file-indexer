@@ -15,8 +15,6 @@ public:
 
   int run(int argc, const char* argv[]);
 
-  static void printDbError(const db::Error& error);
-
 private:
   int handleCommand(const std::vector<std::string>& args, bool isRepl);
   void repl();
@@ -34,5 +32,6 @@ private:
   static void printFindResults(const std::vector<db::FindResult>& findResults);
   static void printShowIndex(const db::ShowIndexResult& index);
   static void printDuplicates(const std::vector<dup::DuplicateGroup>& duplicates);
+  static void printError(const app::Error& error);
   static std::optional<std::int64_t> parseIndexFlag(const std::vector<std::string>& args, std::size_t startIndex);
 };

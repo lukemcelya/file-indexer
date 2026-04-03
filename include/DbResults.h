@@ -21,6 +21,8 @@ namespace db
     }
   };
 
+  constexpr int ERR_SIZE_OVERFLOW = -1;
+  
   struct FindResult
   {
     fs::path path;
