@@ -22,10 +22,10 @@ private:
   int handleIndex(std::string_view dir);
   int handleRescan(std::string_view dir);
   [[nodiscard]] int handleFind(const std::vector<std::string>& args) const;
-  int handleDuplicate(const std::vector<std::string>& args, bool isRepl);
+  int handleDuplicate(const std::vector<std::string>& args);
   int handleStats(const std::vector<std::string>& args);
   int handleCompare(const std::vector<std::string>& args);
-  [[nodiscard]] int handleShow(const std::vector<std::string>& args, bool isRepl) const;
+  [[nodiscard]] int handleShow(const std::vector<std::string>& args) const;
 
   static std::vector<std::string> tokenize(const std::string& input);
   static void printUsage();

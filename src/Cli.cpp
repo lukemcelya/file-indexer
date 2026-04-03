@@ -46,14 +46,14 @@ int Cli::handleCommand(const std::vector<std::string>& args, const bool isRepl)
     return handleRescan(args[1]);
   if (command == "find")
     return handleFind(args);
-  if (command == "duplicate")
-    return handleDuplicate(args, isRepl);
+  if (command == "duplicates")
+    return handleDuplicate(args);
   if (command == "stats")
     return handleStats(args);
   if (command == "compare")
     return handleCompare(args);
   if (command == "show")
-    return handleShow(args, isRepl);
+    return handleShow(args);
 
   printUsage();
   return 1;
@@ -119,9 +119,9 @@ int Cli::handleFind(const std::vector<std::string>& args) const
   return 0;
 }
 
-int Cli::handleDuplicate(const std::vector<std::string>& args, const bool isRepl)
+int Cli::handleDuplicate(const std::vector<std::string>& args)
 {
-  const std::size_t startIndex = isRepl ? 1 : 2;
+  constexpr std::size_t startIndex = 1;
   const auto indexId = parseIndexFlag(args, startIndex);
   if (!indexId)
   {
@@ -151,9 +151,9 @@ int Cli::handleCompare(const std::vector<std::string>& args)
   return 0;
 }
 
-int Cli::handleShow(const std::vector<std::string>& args, const bool isRepl) const
+int Cli::handleShow(const std::vector<std::string>& args) const
 {
-  const std::size_t startIndex = isRepl ? 1 : 2; // On REPL, 0th arg is command instead of process
+  constexpr std::size_t startIndex = 1;
   const auto indexId = parseIndexFlag(args, startIndex);
 
   if (!indexId)
@@ -193,7 +193,7 @@ void Cli::printUsage()
             << "    rescan              <directory>\n"
             << "    show                <directory>\n"
             << "    find                <query>\n"
-            << "    duplicate --index   <id>\n"
+            << "    duplicates --index  <id>\n"
             << "    stats\n"
             << "    compare             <scan1> <scan2>\n";
 }
@@ -250,7 +250,7 @@ void Cli::printError(const app::Error& error)
 
 std::optional<std::int64_t> Cli::parseIndexFlag(const std::vector<std::string>& args, const std::size_t startIndex)
 {
-  if (startIndex >= args.size())
+  if (startIndex + 1 >= args.size())
     return std::nullopt;
 
   if (args[startIndex] != "--index")
