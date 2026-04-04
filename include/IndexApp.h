@@ -31,8 +31,10 @@ private:
 public:
   explicit IndexApp(Database db);
 
+  // Initialization
   std::expected<void, app::Error> loadIndexStore();
 
+  // User app functions
   std::expected<std::int64_t, app::Error> createIndex(const fs::path& path);
   std::expected<RescanStats, app::Error> rescanIndex(const fs::path& path);
   std::expected<std::vector<db::FindResult>, app::Error> findAllEntries(const std::string& query);

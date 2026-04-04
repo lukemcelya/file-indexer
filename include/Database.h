@@ -86,7 +86,7 @@ private:
   std::expected<void, db::Error> prepareDuplicateSearch(std::int64_t indexId);
   std::expected<void, db::Error> prepareIndexPath(std::int64_t indexId);
 
-  // Static helpers (convert int64_t time <> file_time_type)
+  // Static helpers
   static std::int64_t toUnixTime(const fs::file_time_type& time);
   static fs::file_time_type toFileTime(std::int64_t time);
   static std::expected<std::int64_t, db::Error> toSqliteFileSize(std::uintmax_t size);
