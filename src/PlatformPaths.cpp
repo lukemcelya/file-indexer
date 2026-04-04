@@ -4,7 +4,7 @@
 
 #if defined(_WIN32)
   #include <windows.h>
-#elif defind(__linux__)
+#elif defined(__linux__)
   #include <unistd.h>
   #include <limits.h>
 #elif defined(__APPLE__)
@@ -39,13 +39,13 @@ namespace platform
   #elif defined(__APPLE__)
 
     uint32_t size = 0;
-    _NSGetExecutablePath(buffer, &size);
+    _NSGetExecutablePath(nullptr, &size);
 
     std::string buffer(size, '\0');
     if (_NSGetExecutablePath(buffer.data(), &size) != 0)
       throw std::runtime_error("Failed to get exe path");
 
-    return fs::path(buffer);
+    return buffer.c_str();
 
   #else
     #error Unsupported platform

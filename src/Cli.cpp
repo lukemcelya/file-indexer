@@ -10,6 +10,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <time.h>
 
 Cli::Cli(IndexApp& indexApp)
   : m_indexApp { indexApp }
@@ -221,7 +222,10 @@ void Cli::printShowIndex(const db::ShowIndexResult& index)
 void Cli::printDuplicates(const std::vector<dup::DuplicateGroup>& duplicates)
 {
   if (duplicates.empty())
+  {
     std::cout << "No duplicates found\n";
+    return;
+  }
 
   std::cout << "Duplicates:\n-----------\n";
 
@@ -268,8 +272,23 @@ std::optional<std::int64_t> Cli::parseIndexFlag(const std::vector<std::string>& 
 
 std::string Cli::formatTimestamp(const std::int64_t timestamp)
 {
-  using namespace std::chrono;
+  // using namespace std::chrono;
+  //
+  // auto tp = floor<seconds>(system_clock::time_point{seconds(timestamp)});
+  // return std::format("{:%Y-%m-%d %H:%M:%S}", tp);
 
-  auto tp = floor<seconds>(system_clock::time_point{seconds(timestamp)});
-  return std::format("{:%Y-%m-%d %H:%M:%S}", tp);
+  auto tt = static_cast<std::time_t>(timestamp);
+
+  std::tm tm{};
+#ifdef _WIN32
+  localtime_s(&tm, &tt);
+#else
+  localtime_r(&tt, &tm);
+#endif
+
+  char buffer[32];
+  std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &tm);
+
+
+  return buffer;
 }
