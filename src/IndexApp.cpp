@@ -233,7 +233,6 @@ auto IndexApp::findAllEntries(const std::string& query) -> std::expected<std::ve
       });
   }
 
-  m_database.finishFind();
   return *result;
 }
 

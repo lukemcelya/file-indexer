@@ -210,9 +210,7 @@ auto Database::insertEntry(const std::int64_t indexId, const Entry& entry) -> st
     return res;
   }
 
-  sqlite3_reset(m_stmtEntryInsert);
-  sqlite3_clear_bindings(m_stmtEntryInsert);
-
+  resetStatement(m_stmtEntryInsert);
   return {};
 }
 
@@ -229,9 +227,7 @@ auto Database::deleteEntry(const std::int64_t indexId, const Entry& entry) -> st
     return res;
   }
 
-  sqlite3_reset(m_stmtEntryDelete);
-  sqlite3_clear_bindings(m_stmtEntryDelete);
-
+  resetStatement(m_stmtEntryDelete);
   return {};
 }
 
@@ -257,9 +253,7 @@ auto Database::updateEntry(const std::int64_t indexId, const Entry& entry) -> st
     return res;
   }
 
-  sqlite3_reset(m_stmtEntryUpdate);
-  sqlite3_clear_bindings(m_stmtEntryUpdate);
-
+  resetStatement(m_stmtEntryUpdate);
   return {};
 }
 
@@ -293,6 +287,7 @@ auto Database::findEntries(const std::string& query, const std::optional<std::in
     return std::unexpected(makeError(rc));
   }
 
+  finalizeStatement(m_stmtEntrySearch);
   return result;
 }
 
@@ -338,20 +333,21 @@ auto Database::prepareEntrySearch(const std::string& query, const std::optional<
   return {};
 }
 
-void Database::finishFind()
-{
-  finalizeStatement(m_stmtEntrySearch);
-}
-
 auto Database::showIndex(const std::int64_t indexId) -> std::expected<db::ShowIndexResult, db::Error>
 {
   if (const auto prep = prepareIndexShow(indexId); !prep)
     return std::unexpected(prep.error());
 
-  if (const auto res = stepRow(m_stmtEntrySearch); !res)
+  const auto row = stepRow(m_stmtIndexShow);
+  if (!row) // If (error)
   {
     finalizeStatement(m_stmtIndexShow);
-    return std::unexpected(res.error());
+    return std::unexpected(row.error());
+  }
+  if (!*row) // If (returned false)
+  {
+    finalizeStatement(m_stmtIndexShow);
+    return std::unexpected(db::Error{db::ERR_NOT_FOUND, "Index not found"});
   }
 
   const std::int64_t id = sqlite3_column_int64(m_stmtIndexShow, 0);
@@ -525,10 +521,16 @@ auto Database::indexPath(const std::int64_t indexId) -> std::expected<fs::path, 
   if (const auto res = prepareIndexPath(indexId); !res)
     return std::unexpected(res.error());
 
-  if (const auto res = stepRow(m_stmtIndexLoad); !res)
+  const auto row = stepRow(m_stmtIndexPath);
+  if (!row) // If (error)
   {
     finalizeStatement(m_stmtIndexPath);
-    return std::unexpected(res.error());
+    return std::unexpected(row.error());
+  }
+  if (!*row) // If (returned false)
+  {
+    finalizeStatement(m_stmtIndexPath);
+    return std::unexpected(db::Error{db::ERR_NOT_FOUND, "Index not found"});
   }
 
   const unsigned char* pathText = sqlite3_column_text(m_stmtIndexPath, 0);
@@ -704,7 +706,7 @@ auto Database::stepRow(sqlite3_stmt* stmt) -> std::expected<bool, db::Error>
   return std::unexpected(makeError(rc));
 }
 
-void Database::resetStatement(sqlite3_stmt*& stmt)
+void Database::resetStatement(sqlite3_stmt* stmt)
 {
   if (stmt)
   {

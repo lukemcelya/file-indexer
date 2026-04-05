@@ -22,6 +22,7 @@ namespace db
   };
 
   constexpr int ERR_SIZE_OVERFLOW = -1;
+  constexpr int ERR_NOT_FOUND = -2;
   
   struct FindResult
   {

@@ -55,7 +55,6 @@ public:
 
   // Find/Search functions
   std::expected<std::vector<db::FindResult>, db::Error> findEntries(const std::string& query, std::optional<std::int64_t> indexId = std::nullopt);
-  void finishFind();
 
   // Show function
   std::expected<db::ShowIndexResult, db::Error> showIndex(std::int64_t indexId);
@@ -100,7 +99,7 @@ private:
   // Sqlite3_stmt* handling
   std::expected<void, db::Error> stepDone(sqlite3_stmt* stmt);
   std::expected<bool, db::Error> stepRow(sqlite3_stmt* stmt);
-  static void resetStatement(sqlite3_stmt*& stmt);
+  static void resetStatement(sqlite3_stmt* stmt);
   static void finalizeStatement(sqlite3_stmt*& stmt);
   void finalizeAll();
 };
