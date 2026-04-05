@@ -18,7 +18,7 @@ IndexApp::IndexApp(Database db)
 
 auto IndexApp::loadIndexStore() -> std::expected<void, app::Error>
 {
-  const auto loadResult = m_database.loadIndexes();
+  auto loadResult = m_database.loadIndexes();
   if (!loadResult)
     return std::unexpected(
       app::Error{
@@ -34,8 +34,18 @@ auto IndexApp::loadIndexStore() -> std::expected<void, app::Error>
 auto IndexApp::createIndex(const fs::path& path) -> std::expected<std::int64_t, app::Error>
 {
   const fs::path indexPath = normalizePath(path);
-  if (!fs::is_directory(indexPath) || isIndexed(indexPath))
-    return false;
+  if (!fs::is_directory(indexPath))
+    return std::unexpected(
+      app::Error{
+        app::Error::Type::InvalidPath,
+        "Invalid path (path is not a directory)",
+      });
+  if (isIndexed(indexPath))
+    return std::unexpected(
+      app::Error{
+        app::Error::Type::AlreadyIndexed,
+        "Directory already indexed"
+      });
 
   Index index { indexPath };
   auto indexId = m_database.insertIndex(index);
@@ -48,7 +58,7 @@ auto IndexApp::createIndex(const fs::path& path) -> std::expected<std::int64_t, 
         indexId.error()
       });
   }
-  index.setId(indexId.value());
+  index.setId(*indexId);
 
   if (const auto finish = m_database.finishIndex(); !finish)
     return std::unexpected(
@@ -90,7 +100,7 @@ auto IndexApp::createIndex(const fs::path& path) -> std::expected<std::int64_t, 
       });
 
   m_indexStore.push_back(std::move(index));
-  return true;
+  return *indexId;
 }
 
 auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, app::Error>

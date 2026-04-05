@@ -83,10 +83,14 @@ void Cli::repl()
 
 int Cli::handleIndex(const std::string_view dir)
 {
-  if (!m_indexApp.createIndex(dir))
+  const auto res = m_indexApp.createIndex(dir);
+  if (!res)
+  {
+    printError(res.error());
     return 1;
+  }
 
-  std::cout << "Index: " << dir << " created\n";
+  std::cout << "Index (" << *res << ") " << dir << " created\n";
   return 0;
 }
 
