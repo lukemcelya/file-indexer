@@ -32,7 +32,9 @@ private:
   static void printFindResults(const std::vector<db::FindResult>& findResults);
   static void printShowIndex(const db::ShowIndexResult& index);
   static void printDuplicates(const std::vector<dup::DuplicateGroup>& duplicates);
+  static void printIndexStats(const db::IndexStatsResult& stats);
   static void printError(const app::Error& error);
-  static std::optional<std::int64_t> parseIndexFlag(const std::vector<std::string>& args, std::size_t startIndex);
+  static std::optional<std::int64_t> parseIndexFlag(const std::vector<std::string>& args);
   static std::string formatTimestamp(std::int64_t timestamp);
+  static std::string formatBytes(std::uintmax_t bytes);
 };

@@ -278,6 +278,31 @@ auto IndexApp::findDuplicates(const std::int64_t id) -> std::expected<std::vecto
   return dup::find(*entries);
 }
 
+auto IndexApp::indexStats(const std::int64_t id) -> std::expected<db::IndexStatsResult, app::Error>
+{
+  if (!isIndexed(id))
+  {
+    return std::unexpected(
+      app::Error{
+        app::Error::Type::Database,
+        "Directory not indexed"
+      });
+  }
+
+  const auto stats = m_database.getIndexStats(id);
+  if (!stats)
+  {
+    return std::unexpected(
+      app::Error{
+        app::Error::Type::Database,
+        "Get index stats failed",
+        stats.error()
+      });
+  }
+
+  return *stats;
+}
+
 bool IndexApp::isIndexed(const fs::path& path) const
 {
   // True if already exists in m_indexStore

@@ -126,8 +126,7 @@ int Cli::handleFind(const std::vector<std::string>& args) const
 
 int Cli::handleDuplicate(const std::vector<std::string>& args)
 {
-  constexpr std::size_t startIndex = 1;
-  const auto indexId = parseIndexFlag(args, startIndex);
+  const auto indexId = parseIndexFlag(args);
   if (!indexId)
   {
     std::cout << "No valid index\n";
@@ -142,12 +141,26 @@ int Cli::handleDuplicate(const std::vector<std::string>& args)
   }
 
   printDuplicates(result.value());
-
   return 0;
 }
 
 int Cli::handleStats(const std::vector<std::string>& args)
 {
+  const auto indexId = parseIndexFlag(args);
+  if (!indexId)
+  {
+    std::cout << "No valid index\n";
+    return 1;
+  }
+
+  const auto result = m_indexApp.indexStats(*indexId);
+  if (!result)
+  {
+    printError(result.error());
+    return 1;
+  }
+
+  printIndexStats(*result);
   return 0;
 }
 
@@ -158,9 +171,7 @@ int Cli::handleCompare(const std::vector<std::string>& args)
 
 int Cli::handleShow(const std::vector<std::string>& args) const
 {
-  constexpr std::size_t startIndex = 1;
-  const auto indexId = parseIndexFlag(args, startIndex);
-
+  const auto indexId = parseIndexFlag(args);
   if (!indexId)
   {
     std::cout << "No valid index\n";
@@ -174,7 +185,7 @@ int Cli::handleShow(const std::vector<std::string>& args) const
     return 1;
   }
 
-  printShowIndex(result.value());
+  printShowIndex(*result);
 
   return 0;
 }
@@ -245,6 +256,15 @@ void Cli::printDuplicates(const std::vector<dup::DuplicateGroup>& duplicates)
   }
 }
 
+void Cli::printIndexStats(const db::IndexStatsResult& stats)
+{
+  std::cout << "ID: " << stats.id << "\n"
+            << "Directories: " << stats.dirCount << "\n"
+            << "Files: " << stats.fileCount << "\n"
+            << "Total size: " << formatBytes(stats.totalSize) << "\n"
+            << "Last scanned at: " << formatTimestamp(stats.lastScannedAt) << "\n";
+}
+
 void Cli::printError(const app::Error& error)
 {
   if (error.type == app::Error::Type::Database)
@@ -256,15 +276,15 @@ void Cli::printError(const app::Error& error)
     std::cerr << error.message << "\n";
 }
 
-std::optional<std::int64_t> Cli::parseIndexFlag(const std::vector<std::string>& args, const std::size_t startIndex)
+std::optional<std::int64_t> Cli::parseIndexFlag(const std::vector<std::string>& args)
 {
-  if (startIndex + 1 >= args.size())
+  if (args.size() <= 2)
     return std::nullopt;
 
-  if (args[startIndex] != "--index")
+  if (args[1] != "--index")
     return std::nullopt;
 
-  const std::string_view intToParse = args[startIndex + 1];
+  const std::string_view intToParse = args[2];
 
   std::int64_t result{};
   const auto [ptr, ec] = std::from_chars(intToParse.data(), intToParse.data() + intToParse.size(), result);
@@ -295,4 +315,22 @@ std::string Cli::formatTimestamp(const std::int64_t timestamp)
 
 
   return buffer;
+}
+
+std::string Cli::formatBytes(const std::uint64_t bytes)
+{
+  constexpr const char* units[] = {"B", "KB", "MB", "GB", "TB"};
+  double size = static_cast<double>(bytes);
+
+  // Divide by 4 with multiples of 1024 -> convert to unit with index
+  int unitIndex = 0;
+  while (size >= 1024.0 && unitIndex < 4)
+  {
+    size /= 1024.0;
+    ++unitIndex;
+  }
+
+  std::ostringstream oss;
+  oss << std::fixed << std::setprecision(1) << size << " " << units[unitIndex];
+  return oss.str();
 }

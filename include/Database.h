@@ -21,6 +21,7 @@ private:
   sqlite3_stmt* m_stmtIndexInsert{};
   sqlite3_stmt* m_stmtIndexShow{};
   sqlite3_stmt* m_stmtIndexLoad{};
+  sqlite3_stmt* m_stmtIndexStats{};
   sqlite3_stmt* m_stmtEntryInsert{};
   sqlite3_stmt* m_stmtEntryDelete{};
   sqlite3_stmt* m_stmtEntryUpdate{};
@@ -62,6 +63,9 @@ public:
   // Duplicate handling
   std::expected<std::vector<fs::path>, db::Error> findPotentialDuplicates(std::int64_t indexId);
 
+  // Index stats
+  std::expected<db::IndexStatsResult, db::Error> getIndexStats(std::int64_t indexId);
+
   // Index and Entry loading
   std::expected<std::vector<Index>, db::Error> loadIndexes();
   std::expected<std::unordered_map<std::string, Entry>, db::Error> loadEntriesFromIndex(std::int64_t indexId);
@@ -84,6 +88,7 @@ private:
   std::expected<void, db::Error> prepareIndexShow(std::int64_t indexId);
   std::expected<void, db::Error> prepareDuplicateSearch(std::int64_t indexId);
   std::expected<void, db::Error> prepareIndexPath(std::int64_t indexId);
+  std::expected<void, db::Error> prepareIndexStats(std::int64_t indexId);
 
   // Bind helpers
   std::expected<void, db::Error> bindInt64(sqlite3_stmt* stmt, int index, std::int64_t value) const;

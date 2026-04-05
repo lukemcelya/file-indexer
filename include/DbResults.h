@@ -38,4 +38,13 @@ namespace db
     std::int64_t createdAt;
     std::int64_t lastScannedAt;
   };
+
+  struct IndexStatsResult
+  {
+    std::int64_t id;
+    std::int64_t dirCount;
+    std::int64_t fileCount;
+    std::uintmax_t totalSize;
+    std::int64_t lastScannedAt;
+  };
 }

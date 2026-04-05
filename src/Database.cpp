@@ -405,6 +405,32 @@ auto Database::findPotentialDuplicates(const std::int64_t indexId) -> std::expec
   return paths;
 }
 
+auto Database::getIndexStats(const std::int64_t indexId) -> std::expected<db::IndexStatsResult, db::Error>
+{
+  if (const auto res = prepareIndexStats(indexId); !res)
+    return std::unexpected(res.error());
+
+  const auto row = stepRow(m_stmtIndexStats);
+  if (!row) // If (error)
+  {
+    finalizeStatement(m_stmtIndexStats);
+    return std::unexpected(row.error());
+  }
+  if (!*row) // If (returned false)
+  {
+    finalizeStatement(m_stmtIndexStats);
+    return std::unexpected(db::Error{db::ERR_NOT_FOUND, "Index not found"});
+  }
+
+  const std::int64_t dirCount = sqlite3_column_int64(m_stmtIndexStats, 0);
+  const std::int64_t fileCount = sqlite3_column_int64(m_stmtIndexStats, 1);
+  const std::uintmax_t totalSize = sqlite3_column_int64(m_stmtIndexStats, 2);
+  const std::int64_t lastScannedAt = sqlite3_column_int64(m_stmtIndexStats, 3);
+
+  finalizeStatement(m_stmtIndexStats);
+  return {db::IndexStatsResult{indexId, dirCount, fileCount, totalSize, lastScannedAt}};
+}
+
 auto Database::prepareDuplicateSearch(const std::int64_t indexId) -> std::expected<void, db::Error>
 {
   const std::string query = "SELECT relative_path "
@@ -548,6 +574,28 @@ auto Database::prepareIndexPath(const std::int64_t indexId) -> std::expected<voi
 
   if (const auto res = bindInt64(m_stmtIndexPath, 1, indexId); !res)
     return res;
+
+  return {};
+}
+
+auto Database::prepareIndexStats(std::int64_t indexId) -> std::expected<void, db::Error>
+{
+  const std::string query =
+    "SELECT "
+      "SUM(CASE WHEN e.is_directory = 1 THEN 1 ELSE 0 END) AS directory_count, "
+      "SUM(CASE WHEN e.is_directory = 0 THEN 1 ELSE 0 END) AS file_count, "
+      "COALESCE(SUM(CASE WHEN e.is_directory = 0 THEN e.size_bytes ELSE 0 END), 0) AS total_size_bytes, "
+      "i.last_scanned_at "
+    "FROM indexes i "
+      "LEFT JOIN entries e ON e.index_id = i.id "
+    "WHERE i.id = ? "
+    "GROUP BY i.id, i.last_scanned_at;";
+
+  if (const auto res = prepare(m_stmtIndexStats, query.c_str()); !res)
+    return std::unexpected(res.error());
+
+  if (const auto res = bindInt64(m_stmtIndexStats, 1, indexId); !res)
+    return std::unexpected(res.error());
 
   return {};
 }

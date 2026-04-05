@@ -40,6 +40,7 @@ public:
   std::expected<std::vector<db::FindResult>, app::Error> findAllEntries(const std::string& query);
   std::expected<db::ShowIndexResult, app::Error> showIndex(std::int64_t id);
   std::expected<std::vector<dup::DuplicateGroup>, app::Error> findDuplicates(std::int64_t id);
+  std::expected<db::IndexStatsResult, app::Error> indexStats(std::int64_t id);
 
 private:
   [[nodiscard]] bool isIndexed(const fs::path& path) const;
