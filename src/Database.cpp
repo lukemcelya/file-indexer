@@ -324,7 +324,7 @@ auto Database::prepareEntrySearch(const std::string& query, const std::optional<
 {
   if (indexId.has_value())
   {
-    const auto prep = prepare(m_stmtEntrySearch, "SELECT relative_path, is_directory, size_bytes FROM entries WHERE relative_path LIKE ? OR name LIKE ? OR extension LIKE?;");
+    const auto prep = prepare(m_stmtEntrySearch, "SELECT relative_path, is_directory, size_bytes FROM entries WHERE index_id = ? AND (relative_path LIKE ? OR name LIKE ? OR extension LIKE?);");
     if (!prep)
       return std::unexpected(prep.error());
 
@@ -587,7 +587,7 @@ auto Database::prepareIndexPath(const std::int64_t indexId) -> std::expected<voi
   if (const auto prep = prepare(m_stmtIndexPath, "SELECT root_path FROM indexes WHERE id = ?"); !prep)
     return std::unexpected(prep.error());
 
-  if (const auto res = bindInt64(m_stmtIndexPath, 2, indexId); !res)
+  if (const auto res = bindInt64(m_stmtIndexPath, 1, indexId); !res)
     return std::unexpected(res.error());
 
   return {};
@@ -630,7 +630,7 @@ auto Database::exec(const std::string_view query) -> std::expected<void, db::Err
     sqlite3_free(errMsg);
     return std::unexpected(db::Error{
       sqlite3_errcode(m_db),
-      errMsg
+      errMsgStr
     });
   }
 
