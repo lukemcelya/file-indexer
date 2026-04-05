@@ -87,17 +87,20 @@ private:
   std::expected<void, db::Error> prepareIndexPath(std::int64_t indexId);
 
   // Bind helpers
-  std::expected<void, db::Error> bindInt64(sqlite3_stmt* stmt, const int index, const std::int64_t value) const;
-  std::expected<void, db::Error> bindText(sqlite3_stmt* stmt, const int index, const std::string_view value) const;
+  std::expected<void, db::Error> bindInt64(sqlite3_stmt* stmt, int index, std::int64_t value) const;
+  std::expected<void, db::Error> bindText(sqlite3_stmt* stmt, int index, std::string_view value) const;
 
-  db::Error makeError(const int rc) const;
+  [[nodiscard]] db::Error makeError(const int rc) const;
 
   // Static helpers
   static std::int64_t toUnixTime(const fs::file_time_type& time);
   static fs::file_time_type toFileTime(std::int64_t time);
   static std::expected<std::int64_t, db::Error> toSqliteFileSize(std::uintmax_t size);
 
-  // Sqlite3_stmt* cleanup
-  void finalizeAll();
+  // Sqlite3_stmt* handling
+  std::expected<void, db::Error> stepDone(sqlite3_stmt* stmt);
+  std::expected<bool, db::Error> stepRow(sqlite3_stmt* stmt);
+  static void resetStatement(sqlite3_stmt*& stmt);
   static void finalizeStatement(sqlite3_stmt*& stmt);
+  void finalizeAll();
 };

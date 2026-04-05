@@ -84,28 +84,28 @@ auto Database::open(const fs::path& dbPath) -> std::expected<Database, db::Error
 auto Database::finishIndex() -> std::expected<void, db::Error>
 {
   finalizeStatement(m_stmtIndexInsert);
-  if (const auto commitRes = commit(); !commitRes)
-    return std::unexpected(commitRes.error());
+  if (const auto res = commit(); !res)
+    return res;
 
   return {};
 }
 
 auto Database::beginRescan() -> std::expected<void, db::Error>
 {
-  if (const auto trnsRes = beginTransaction(); !trnsRes)
-    return std::unexpected(trnsRes.error());
+  if (const auto res = beginTransaction(); !res)
+    return res;
 
   std::string query = "INSERT INTO entries (index_id, relative_path, name, extension, is_directory, size_bytes, last_written_at) VALUES (?, ?, ?, ?, ?, ?, ?);";
-  if (const auto prep = prepare(m_stmtEntryInsert, query.c_str()); !prep)
-    return std::unexpected(prep.error());
+  if (const auto res = prepare(m_stmtEntryInsert, query.c_str()); !res)
+    return res;
 
   query = "UPDATE entries SET size_bytes = ?, last_written_at = ? WHERE index_id = ? AND relative_path = ?;";
-  if (const auto prep = prepare(m_stmtEntryUpdate, query.c_str()); !prep)
-    return std::unexpected(prep.error());
+  if (const auto res = prepare(m_stmtEntryUpdate, query.c_str()); !res)
+    return res;
 
   query = "DELETE FROM entries WHERE index_id = ? AND relative_path = ?;";
-  if (const auto prep = prepare(m_stmtEntryDelete, query.c_str()); !prep)
-    return std::unexpected(prep.error());
+  if (const auto res = prepare(m_stmtEntryDelete, query.c_str()); !res)
+    return res;
 
   return {};
 }
@@ -115,8 +115,8 @@ auto Database::cancelRescan() -> std::expected<void, db::Error>
   finalizeStatement(m_stmtEntryInsert);
   finalizeStatement(m_stmtEntryUpdate);
   finalizeStatement(m_stmtEntryDelete);
-  if (const auto rbcRes = rollback(); !rbcRes)
-    return std::unexpected(rbcRes.error());
+  if (const auto res = rollback(); !res)
+    return res;
 
   return {};
 }
@@ -126,44 +126,36 @@ auto Database::finishRescan() -> std::expected<void, db::Error>
   finalizeStatement(m_stmtEntryInsert);
   finalizeStatement(m_stmtEntryUpdate);
   finalizeStatement(m_stmtEntryDelete);
-  if (const auto commitRes = commit(); !commitRes)
-    return std::unexpected(commitRes.error());
+  if (const auto res = commit(); !res)
+    return res;
 
   return {};
 }
 
 auto Database::insertIndex(const Index& index) -> std::expected<std::int64_t, db::Error>
 {
-  if (const auto trnsRes = beginTransaction(); !trnsRes)
-    return std::unexpected(trnsRes.error());
+  if (const auto res = beginTransaction(); !res)
+    return std::unexpected(res.error());
 
   const auto prep = prepare(m_stmtIndexInsert, "INSERT INTO indexes (root_path, created_at, last_scanned_at) VALUES (?, ?, ?);");
   if (!prep)
     return std::unexpected(prep.error());
 
-  if (const auto res = bindText(m_stmtIndexInsert, 1, index.root().string().c_str()); !res)
+  if (const auto res = bindText(m_stmtIndexInsert, 1, index.root().string()); !res)
     return std::unexpected(res.error());
   if (const auto res = bindInt64(m_stmtIndexInsert, 2, index.createdAt()); !res)
     return std::unexpected(res.error());
   if (const auto res = bindInt64(m_stmtIndexInsert, 3, index.lastScannedAt()); !res)
     return std::unexpected(res.error());
 
-  if (sqlite3_step(m_stmtIndexInsert) != SQLITE_DONE)
+  if (auto res = stepDone(m_stmtIndexInsert); !res)
   {
-    db::Error error{
-    sqlite3_errcode(m_db),
-      sqlite3_errmsg(m_db)
-    };
-
+    auto error = res.error();
     finalizeStatement(m_stmtIndexInsert);
-
-    /* Error causes db to rollback
-     * If rollback fails, append rollback error
-     * to initial failure
-     */
     if (const auto rb = rollback(); !rb)
       error.message += " | Rollback also failed: " + rb.error().message;
-    return std::unexpected(error);
+
+    return std::unexpected(std::move(error));
   }
 
   const sqlite3_int64 indexId = sqlite3_last_insert_rowid(m_db);
@@ -175,12 +167,12 @@ auto Database::insertIndex(const Index& index) -> std::expected<std::int64_t, db
 
 auto Database::beginEntryInsert() -> std::expected<void, db::Error>
 {
-  if (const auto trnsRes = beginTransaction(); !trnsRes)
-    return std::unexpected(trnsRes.error());
+  if (const auto res = beginTransaction(); !res)
+    return res;
 
   const std::string query = "INSERT INTO entries (index_id, relative_path, name, extension, is_directory, size_bytes, last_written_at) VALUES (?, ?, ?, ?, ?, ?, ?);";
-  if (const auto prep = prepare(m_stmtEntryInsert, query.c_str()); !prep)
-    return std::unexpected(prep.error());
+  if (const auto res = prepare(m_stmtEntryInsert, query.c_str()); !res)
+    return res;
 
   return {};
 }
@@ -188,8 +180,8 @@ auto Database::beginEntryInsert() -> std::expected<void, db::Error>
 auto Database::finishEntryInsert() -> std::expected<void, db::Error>
 {
   finalizeStatement(m_stmtEntryInsert);
-  if (const auto commitRes = commit(); !commitRes)
-    return std::unexpected(commitRes.error());
+  if (const auto res = commit(); !res)
+    return res;
 
   return {};
 }
@@ -198,29 +190,24 @@ auto Database::insertEntry(const std::int64_t indexId, const Entry& entry) -> st
 {
   // index_id > relative_path > name > extension > is_directory > size_bytes > last_written_at
   if (const auto res = bindInt64(m_stmtEntryInsert, 1, indexId); !res)
-    return std::unexpected(res.error());
-  if (const auto res = bindText(m_stmtEntryInsert, 2, entry.path.string().c_str()); !res)
-    return std::unexpected(res.error());
-  if (const auto res = bindText(m_stmtEntryInsert, 3, entry.name.string().c_str()); !res)
-    return std::unexpected(res.error());
-  if (const auto res = bindText(m_stmtEntryInsert, 4, entry.extension.string().c_str()); !res)
-    return std::unexpected(res.error());
+    return res;
+  if (const auto res = bindText(m_stmtEntryInsert, 2, entry.path.string()); !res)
+    return res;
+  if (const auto res = bindText(m_stmtEntryInsert, 3, entry.name.string()); !res)
+    return res;
+  if (const auto res = bindText(m_stmtEntryInsert, 4, entry.extension.string()); !res)
+    return res;
   if (const auto res = bindInt64(m_stmtEntryInsert, 5, static_cast<std::int64_t>(entry.type)); !res)
-    return std::unexpected(res.error());
+    return res;
   if (const auto res = bindInt64(m_stmtEntryInsert, 6, static_cast<std::int64_t>(entry.size)); !res)
-    return std::unexpected(res.error());
+    return res;
   if (const auto res = bindInt64(m_stmtEntryInsert, 7, toUnixTime(entry.lastWrittenAt)); !res)
-    return std::unexpected(res.error());
+    return res;
 
-  if (sqlite3_step(m_stmtEntryInsert) != SQLITE_DONE)
+  if (const auto res = stepDone(m_stmtEntryInsert); !res)
   {
-    db::Error error{
-      sqlite3_errcode(m_db),
-      sqlite3_errmsg(m_db)
-    };
-
     finalizeStatement(m_stmtEntryInsert);
-    return std::unexpected(error);
+    return res;
   }
 
   sqlite3_reset(m_stmtEntryInsert);
@@ -232,19 +219,14 @@ auto Database::insertEntry(const std::int64_t indexId, const Entry& entry) -> st
 auto Database::deleteEntry(const std::int64_t indexId, const Entry& entry) -> std::expected<void, db::Error>
 {
   if (const auto res = bindInt64(m_stmtEntryDelete, 1, indexId); !res)
-    return std::unexpected(res.error());
-  if (const auto res = bindText(m_stmtEntryDelete, 2, entry.path.string().c_str()); !res)
-    return std::unexpected(res.error());
+    return res;
+  if (const auto res = bindText(m_stmtEntryDelete, 2, entry.path.string()); !res)
+    return res;
 
-  if (sqlite3_step(m_stmtEntryDelete) != SQLITE_DONE)
+  if (const auto res = stepDone(m_stmtEntryDelete); !res)
   {
-    db::Error error{
-      sqlite3_errcode(m_db),
-      sqlite3_errmsg(m_db)
-    };
-
     finalizeStatement(m_stmtEntryDelete);
-    return std::unexpected(error);
+    return res;
   }
 
   sqlite3_reset(m_stmtEntryDelete);
@@ -261,19 +243,18 @@ auto Database::updateEntry(const std::int64_t indexId, const Entry& entry) -> st
     return std::unexpected(fileSize.error());
 
   if (const auto res = bindInt64(m_stmtEntryUpdate, 1, *fileSize); !res)
-    return std::unexpected(res.error());
+    return res;
   if (const auto res = bindInt64(m_stmtEntryUpdate, 2, toUnixTime(entry.lastWrittenAt)); !res)
-    return std::unexpected(res.error());
+    return res;
   if (const auto res = bindInt64(m_stmtEntryUpdate, 3, indexId); !res)
-    return std::unexpected(res.error());
-  if (const auto res = bindText(m_stmtEntryUpdate, 4, entry.path.string().c_str()); !res)
-    return std::unexpected(res.error());
+    return res;
+  if (const auto res = bindText(m_stmtEntryUpdate, 4, entry.path.string()); !res)
+    return res;
 
-  if (sqlite3_step(m_stmtEntryUpdate) != SQLITE_DONE)
+  if (const auto res = stepDone(m_stmtEntryUpdate); !res)
   {
-    return std::unexpected(db::Error{
-      sqlite3_errcode(m_db),
-      sqlite3_errmsg(m_db)});
+    finalizeStatement(m_stmtEntryUpdate);
+    return res;
   }
 
   sqlite3_reset(m_stmtEntryUpdate);
@@ -308,13 +289,8 @@ auto Database::findEntries(const std::string& query, const std::optional<std::in
 
   if (rc != SQLITE_DONE)
   {
-    db::Error error{
-      sqlite3_errcode(m_db),
-      sqlite3_errmsg(m_db)
-    };
-
     finalizeStatement(m_stmtEntrySearch);
-    return std::unexpected(error);
+    return std::unexpected(makeError(rc));
   }
 
   return result;
@@ -324,35 +300,39 @@ auto Database::prepareEntrySearch(const std::string& query, const std::optional<
 {
   if (indexId.has_value())
   {
-    const auto prep = prepare(m_stmtEntrySearch, "SELECT relative_path, is_directory, size_bytes FROM entries WHERE index_id = ? AND (relative_path LIKE ? OR name LIKE ? OR extension LIKE?);");
+    const auto prep = prepare(
+    m_stmtEntrySearch,
+    "SELECT relative_path, is_directory, size_bytes FROM entries WHERE index_id = ? AND (relative_path LIKE ? OR name LIKE ? OR extension LIKE?);");
     if (!prep)
-      return std::unexpected(prep.error());
+      return prep;
 
     const std::string newQuery = "%" + query + "%";
 
     if (const auto res = bindInt64(m_stmtEntrySearch, 1, *indexId); !res)
-      return std::unexpected(res.error());
-    if (const auto res = bindText(m_stmtEntrySearch, 2, newQuery.c_str()); !res)
-      return std::unexpected(res.error());
-    if (const auto res = bindText(m_stmtEntrySearch, 3, newQuery.c_str()); !res)
-      return std::unexpected(res.error());
-    if (const auto res = bindText(m_stmtEntrySearch, 4, newQuery.c_str()); !res)
-      return std::unexpected(res.error());
+      return res;
+    if (const auto res = bindText(m_stmtEntrySearch, 2, newQuery); !res)
+      return res;
+    if (const auto res = bindText(m_stmtEntrySearch, 3, newQuery); !res)
+      return res;
+    if (const auto res = bindText(m_stmtEntrySearch, 4, newQuery); !res)
+      return res;
   }
   else
   {
-    const auto prep = prepare(m_stmtEntrySearch, "SELECT relative_path, is_directory, size_bytes FROM entries WHERE relative_path LIKE ? OR name LIKE ? OR extension LIKE?;");
+    const auto prep = prepare(
+      m_stmtEntrySearch,
+      "SELECT relative_path, is_directory, size_bytes FROM entries WHERE relative_path LIKE ? OR name LIKE ? OR extension LIKE?;");
     if (!prep)
-      return std::unexpected(prep.error());
+      return prep;
 
     const std::string newQuery = "%" + query + "%";
 
-    if (const auto res = bindText(m_stmtEntrySearch, 1, newQuery.c_str()); !res)
-      return std::unexpected(res.error());
-    if (const auto res = bindText(m_stmtEntrySearch, 2, newQuery.c_str()); !res)
-      return std::unexpected(res.error());
-    if (const auto res = bindText(m_stmtEntrySearch, 3, newQuery.c_str()); !res)
-      return std::unexpected(res.error());
+    if (const auto res = bindText(m_stmtEntrySearch, 1, newQuery); !res)
+      return res;
+    if (const auto res = bindText(m_stmtEntrySearch, 2, newQuery); !res)
+      return res;
+    if (const auto res = bindText(m_stmtEntrySearch, 3, newQuery); !res)
+      return res;
   }
 
   return {};
@@ -368,15 +348,10 @@ auto Database::showIndex(const std::int64_t indexId) -> std::expected<db::ShowIn
   if (const auto prep = prepareIndexShow(indexId); !prep)
     return std::unexpected(prep.error());
 
-  if (sqlite3_step(m_stmtIndexShow) != SQLITE_ROW)
+  if (const auto res = stepRow(m_stmtEntrySearch); !res)
   {
-    db::Error error{
-      sqlite3_errcode(m_db),
-    sqlite3_errmsg(m_db)
-    };
-
     finalizeStatement(m_stmtIndexShow);
-    return std::unexpected(error);
+    return std::unexpected(res.error());
   }
 
   const std::int64_t id = sqlite3_column_int64(m_stmtIndexShow, 0);
@@ -395,11 +370,12 @@ auto Database::showIndex(const std::int64_t indexId) -> std::expected<db::ShowIn
 
 auto Database::prepareIndexShow(const std::int64_t indexId) -> std::expected<void, db::Error>
 {
-  if (const auto prep = prepare(m_stmtIndexShow, "SELECT * FROM indexes WHERE id = ?"); !prep)
-    return std::unexpected(prep.error());
+  const std::string query = "SELECT id, root_path, created_at, last_scanned_at FROM indexes WHERE id = ?;";
+  if (const auto res = prepare(m_stmtIndexShow, query.c_str()); !res)
+    return res;
 
   if (const auto res = bindInt64(m_stmtIndexShow, 1, indexId); !res)
-    return std::unexpected(res.error());
+    return res;
 
   return {};
 }
@@ -425,13 +401,8 @@ auto Database::findPotentialDuplicates(const std::int64_t indexId) -> std::expec
 
   if (rc != SQLITE_DONE)
   {
-    db::Error error{
-      sqlite3_errcode(m_db),
-      sqlite3_errmsg(m_db)
-    };
-
     finalizeStatement(m_stmtDuplicateSearch);
-    return std::unexpected(error);
+    return std::unexpected(makeError(rc));
   }
 
   finalizeStatement(m_stmtDuplicateSearch);
@@ -454,13 +425,13 @@ auto Database::prepareDuplicateSearch(const std::int64_t indexId) -> std::expect
                       ") "
                       "ORDER BY size_bytes;";
 
-  if (const auto prep = prepare(m_stmtDuplicateSearch, query.c_str()); !prep)
-    return std::unexpected(prep.error());
+  if (const auto res = prepare(m_stmtDuplicateSearch, query.c_str()); !res)
+    return res;
 
   if (const auto res = bindInt64(m_stmtDuplicateSearch, 1, indexId); !res)
-    return std::unexpected(res.error());
+    return res;
   if (const auto res = bindInt64(m_stmtDuplicateSearch, 2, indexId); !res)
-    return std::unexpected(res.error());
+    return res;
 
   return {};
 }
@@ -470,8 +441,9 @@ auto Database::loadIndexes() -> std::expected<std::vector<Index>, db::Error>
 {
   std::vector<Index> indexes;
 
-  if (const auto prep = prepare(m_stmtIndexLoad, "SELECT * FROM indexes;"); !prep)
-    return std::unexpected(prep.error());
+  const std::string query = "SELECT id, root_path, created_at, last_scanned_at FROM indexes;";
+  if (const auto res = prepare(m_stmtIndexLoad, query.c_str()); !res)
+    return std::unexpected(res.error());
 
   int rc{};
   while ((rc = sqlite3_step(m_stmtIndexLoad)) == SQLITE_ROW)
@@ -490,13 +462,8 @@ auto Database::loadIndexes() -> std::expected<std::vector<Index>, db::Error>
 
   if (rc != SQLITE_DONE)
   {
-    db::Error error{
-      sqlite3_errcode(m_db),
-      sqlite3_errmsg(m_db)
-    };
-
     finalizeStatement(m_stmtIndexLoad);
-    return std::unexpected(error);
+    return std::unexpected(makeError(rc));
   }
 
   finalizeStatement(m_stmtIndexLoad);
@@ -545,13 +512,8 @@ auto Database::loadEntriesFromIndex(const std::int64_t indexId) -> std::expected
 
   if (rc != SQLITE_DONE)
   {
-    db::Error error{
-      sqlite3_errcode(m_db),
-      sqlite3_errmsg(m_db)
-    };
-
     finalizeStatement(m_stmtEntryLoad);
-    return std::unexpected(error);
+    return std::unexpected(makeError(rc));
   }
 
   finalizeStatement(m_stmtEntryLoad);
@@ -560,18 +522,13 @@ auto Database::loadEntriesFromIndex(const std::int64_t indexId) -> std::expected
 
 auto Database::indexPath(const std::int64_t indexId) -> std::expected<fs::path, db::Error>
 {
-  if (const auto prep = prepareIndexPath(indexId); !prep)
-    return std::unexpected(prep.error());
+  if (const auto res = prepareIndexPath(indexId); !res)
+    return std::unexpected(res.error());
 
-  if (sqlite3_step(m_stmtIndexPath) != SQLITE_ROW)
+  if (const auto res = stepRow(m_stmtIndexLoad); !res)
   {
-    db::Error error{
-      sqlite3_errcode(m_db),
-      sqlite3_errmsg(m_db)
-    };
-
     finalizeStatement(m_stmtIndexPath);
-    return std::unexpected(error);
+    return std::unexpected(res.error());
   }
 
   const unsigned char* pathText = sqlite3_column_text(m_stmtIndexPath, 0);
@@ -584,11 +541,11 @@ auto Database::indexPath(const std::int64_t indexId) -> std::expected<fs::path, 
 
 auto Database::prepareIndexPath(const std::int64_t indexId) -> std::expected<void, db::Error>
 {
-  if (const auto prep = prepare(m_stmtIndexPath, "SELECT root_path FROM indexes WHERE id = ?"); !prep)
-    return std::unexpected(prep.error());
+  if (const auto res = prepare(m_stmtIndexPath, "SELECT root_path FROM indexes WHERE id = ?"); !res)
+    return res;
 
   if (const auto res = bindInt64(m_stmtIndexPath, 1, indexId); !res)
-    return std::unexpected(res.error());
+    return res;
 
   return {};
 }
@@ -600,8 +557,8 @@ auto Database::initializeSchema() -> std::expected<void, db::Error>
                       "root_path TEXT NOT NULL, "
                       "created_at INTEGER NOT NULL, "
                       "last_scanned_at INTEGER NOT NULL);";
-  if (const auto prep = exec(query); !prep)
-    return std::unexpected(prep.error());
+  if (const auto res = exec(query); !res)
+    return res;
 
   query = "CREATE TABLE IF NOT EXISTS entries( "
           "id INTEGER PRIMARY KEY, "
@@ -613,8 +570,8 @@ auto Database::initializeSchema() -> std::expected<void, db::Error>
           "size_bytes INTEGER, "
           "last_written_at INTEGER NOT NULL, "
           "FOREIGN KEY(index_id) REFERENCES indexes(id));";
-  if (const auto prep = exec(query); !prep)
-    return std::unexpected(prep.error());
+  if (const auto res = exec(query); !res)
+    return res;
 
   return {};
 }
@@ -650,7 +607,7 @@ auto Database::prepare(sqlite3_stmt*& stmt, const char* sql) -> std::expected<vo
 auto Database::beginTransaction() -> std::expected<void, db::Error>
 {
   if (const auto res = exec("BEGIN TRANSACTION;"); !res)
-    return std::unexpected(res.error());
+    return res;
 
   return {};
 }
@@ -658,7 +615,7 @@ auto Database::beginTransaction() -> std::expected<void, db::Error>
 auto Database::rollback() -> std::expected<void, db::Error>
 {
   if (const auto res = exec("ROLLBACK;"); !res)
-    return std::unexpected(res.error());
+    return res;
 
   return {};
 }
@@ -666,7 +623,7 @@ auto Database::rollback() -> std::expected<void, db::Error>
 auto Database::commit() -> std::expected<void, db::Error>
 {
   if (const auto res = exec("COMMIT;"); !res)
-    return std::unexpected(res.error());
+    return res;
 
   return {};
 }
@@ -726,6 +683,45 @@ auto Database::toSqliteFileSize(const std::uintmax_t size) -> std::expected<std:
   return static_cast<std::int64_t>(size);
 }
 
+auto Database::stepDone(sqlite3_stmt* stmt) -> std::expected<void, db::Error>
+{
+  if (const int rc = sqlite3_step(stmt); rc != SQLITE_DONE)
+    return std::unexpected(makeError(rc));
+
+  return {};
+}
+
+auto Database::stepRow(sqlite3_stmt* stmt) -> std::expected<bool, db::Error>
+{
+  int rc = sqlite3_step(stmt);
+
+  if (rc == SQLITE_ROW)
+    return true;
+
+  if (rc == SQLITE_DONE)
+    return false;
+
+  return std::unexpected(makeError(rc));
+}
+
+void Database::resetStatement(sqlite3_stmt*& stmt)
+{
+  if (stmt)
+  {
+    sqlite3_reset(stmt);
+    sqlite3_clear_bindings(stmt);
+  }
+}
+
+void Database::finalizeStatement(sqlite3_stmt*& stmt)
+{
+  if (stmt != nullptr)
+  {
+    sqlite3_finalize(stmt);
+    stmt = nullptr;
+  }
+}
+
 void Database::finalizeAll()
 {
   finalizeStatement(m_stmtIndexPath);
@@ -738,13 +734,4 @@ void Database::finalizeAll()
   finalizeStatement(m_stmtEntrySearch);
   finalizeStatement(m_stmtEntryLoad);
   finalizeStatement(m_stmtDuplicateSearch);
-}
-
-void Database::finalizeStatement(sqlite3_stmt*& stmt)
-{
-  if (stmt != nullptr)
-  {
-    sqlite3_finalize(stmt);
-    stmt = nullptr;
-  }
 }
