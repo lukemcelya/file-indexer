@@ -33,21 +33,23 @@ auto IndexApp::loadIndexStore() -> std::expected<void, app::Error>
 
 auto IndexApp::createIndex(const fs::path& path) -> std::expected<std::int64_t, app::Error>
 {
-  const fs::path indexPath = normalizePath(path);
-  if (!fs::is_directory(indexPath))
+  const auto indexPath = normalizePath(path);
+  if (!indexPath)
+    return std::unexpected(indexPath.error());
+  if (!fs::is_directory(*indexPath))
     return std::unexpected(
       app::Error{
         app::Error::Type::InvalidPath,
         "Invalid path (path is not a directory)",
       });
-  if (isIndexed(indexPath))
+  if (isIndexed(*indexPath))
     return std::unexpected(
       app::Error{
         app::Error::Type::AlreadyIndexed,
         "Directory already indexed"
       });
 
-  Index index { indexPath };
+  Index index { *indexPath };
   auto indexId = m_database.insertIndex(index);
   if (!indexId)
   {
@@ -105,8 +107,11 @@ auto IndexApp::createIndex(const fs::path& path) -> std::expected<std::int64_t, 
 
 auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, app::Error>
 {
-  const fs::path indexPath = normalizePath(path);
-  if (!fs::is_directory(indexPath))
+  const auto indexPath = normalizePath(path);
+  if (!indexPath)
+    return std::unexpected(indexPath.error());
+
+  if (!fs::is_directory(*indexPath))
     return std::unexpected(
       app::Error{
         app::Error::Type::InvalidPath,
@@ -115,7 +120,7 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, a
 
   const auto currentIndex = std::ranges::find_if(m_indexStore, [&](const Index& index)
   {
-    return index.root() == indexPath;
+    return index.root() == *indexPath;
   });
 
   if (currentIndex == m_indexStore.end())
@@ -329,7 +334,10 @@ bool IndexApp::isEntryChanged(const Entry& oldEntry, const Entry& newEntry)
   return oldEntry.size != newEntry.size;
 }
 
-fs::path IndexApp::normalizePath(const fs::path& path)
+auto IndexApp::normalizePath(const fs::path& path) -> std::expected<fs::path, app::Error>
 {
+  if (!fs::exists(path))
+    return std::unexpected(app::Error{app::Error::Type::InvalidPath, "Invalid directory path"});
+
   return fs::canonical(fs::absolute(path));
 }

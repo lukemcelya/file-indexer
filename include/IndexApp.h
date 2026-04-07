@@ -47,5 +47,5 @@ private:
   [[nodiscard]] bool isIndexed(std::int64_t id) const;
 
   static bool isEntryChanged(const Entry& oldEntry, const Entry& newEntry);
-  static fs::path normalizePath(const fs::path& path);
+  static std::expected<fs::path, app::Error> normalizePath(const fs::path& path);
 };
