@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <string>
 #include <algorithm>
+#include <ranges>
 
 
 namespace fs = std::filesystem;
@@ -194,7 +195,7 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, a
       });
   }
 
-  for (const auto& [relativePath, oldEntry] : existing)
+  for (const auto &oldEntry: existing | std::views::values)
   {
     if (auto deleteRes = m_database.deleteEntry(currentIndex->id(), oldEntry); !deleteRes)
     {
