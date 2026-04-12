@@ -560,7 +560,7 @@ auto Database::indexPath(const std::int64_t indexId) -> std::expected<fs::path, 
   }
 
   const unsigned char* pathText = sqlite3_column_text(m_stmtIndexPath, 0);
-  const fs::path path = pathText ? fs::path(reinterpret_cast<const char*>(pathText)) : fs::path{};
+  fs::path path = pathText ? fs::path(reinterpret_cast<const char*>(pathText)) : fs::path{};
 
   finalizeStatement(m_stmtIndexPath);
 
