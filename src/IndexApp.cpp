@@ -300,8 +300,15 @@ bool IndexApp::isEntryChanged(const Entry& oldEntry, const Entry& newEntry)
 
 auto IndexApp::normalizePath(const fs::path& path) -> std::expected<fs::path, app::Error>
 {
-  if (!fs::exists(path))
-    return std::unexpected(app::Error{app::Error::Type::InvalidPath, "Invalid directory path"});
+  try
+  {
+    if (!fs::exists(path))
+      return std::unexpected(app::Error{app::Error::Type::InvalidPath, "Invalid directory path"});
 
-  return fs::canonical(fs::absolute(path));
+    return fs::canonical(fs::absolute(path));
+  }
+  catch (const fs::filesystem_error& e)
+  {
+    return std::unexpected(app::Error{app::Error::Type::InvalidPath, e.what()});
+  }
 }
