@@ -81,20 +81,8 @@ auto Database::open(const fs::path& dbPath) -> std::expected<Database, db::Error
   return db;
 }
 
-auto Database::finishIndex() -> std::expected<void, db::Error>
+auto Database::prepareRescan() -> std::expected<void, db::Error>
 {
-  finalizeStatement(m_stmtIndexInsert);
-  if (const auto res = commit(); !res)
-    return res;
-
-  return {};
-}
-
-auto Database::beginRescan() -> std::expected<void, db::Error>
-{
-  if (const auto res = beginTransaction(); !res)
-    return res;
-
   std::string query = "INSERT INTO entries (index_id, relative_path, name, extension, is_directory, size_bytes, last_written_at) VALUES (?, ?, ?, ?, ?, ?, ?);";
   if (const auto res = prepare(m_stmtEntryInsert, query.c_str()); !res)
     return res;
@@ -110,33 +98,15 @@ auto Database::beginRescan() -> std::expected<void, db::Error>
   return {};
 }
 
-auto Database::cancelRescan() -> std::expected<void, db::Error>
+bool Database::finalizeRescan()
 {
   finalizeStatement(m_stmtEntryInsert);
   finalizeStatement(m_stmtEntryUpdate);
   finalizeStatement(m_stmtEntryDelete);
-  if (const auto res = rollback(); !res)
-    return res;
-
-  return {};
-}
-
-auto Database::finishRescan() -> std::expected<void, db::Error>
-{
-  finalizeStatement(m_stmtEntryInsert);
-  finalizeStatement(m_stmtEntryUpdate);
-  finalizeStatement(m_stmtEntryDelete);
-  if (const auto res = commit(); !res)
-    return res;
-
-  return {};
 }
 
 auto Database::insertIndex(const Index& index) -> std::expected<std::int64_t, db::Error>
 {
-  if (const auto res = beginTransaction(); !res)
-    return std::unexpected(res.error());
-
   const auto prep = prepare(m_stmtIndexInsert, "INSERT INTO indexes (root_path, created_at, last_scanned_at) VALUES (?, ?, ?);");
   if (!prep)
     return std::unexpected(prep.error());
@@ -152,24 +122,17 @@ auto Database::insertIndex(const Index& index) -> std::expected<std::int64_t, db
   {
     auto error = res.error();
     finalizeStatement(m_stmtIndexInsert);
-    if (const auto rb = rollback(); !rb)
-      error.message += " | Rollback also failed: " + rb.error().message;
-
     return std::unexpected(std::move(error));
   }
 
   const sqlite3_int64 indexId = sqlite3_last_insert_rowid(m_db);
 
   finalizeStatement(m_stmtIndexInsert);
-
   return indexId;
 }
 
-auto Database::beginEntryInsert() -> std::expected<void, db::Error>
+auto Database::prepareEntryInsert() -> std::expected<void, db::Error>
 {
-  if (const auto res = beginTransaction(); !res)
-    return res;
-
   const std::string query = "INSERT INTO entries (index_id, relative_path, name, extension, is_directory, size_bytes, last_written_at) VALUES (?, ?, ?, ?, ?, ?, ?);";
   if (const auto res = prepare(m_stmtEntryInsert, query.c_str()); !res)
     return res;
@@ -177,13 +140,9 @@ auto Database::beginEntryInsert() -> std::expected<void, db::Error>
   return {};
 }
 
-auto Database::finishEntryInsert() -> std::expected<void, db::Error>
+void Database::finalizeEntryInsert()
 {
   finalizeStatement(m_stmtEntryInsert);
-  if (const auto res = commit(); !res)
-    return res;
-
-  return {};
 }
 
 auto Database::insertEntry(const std::int64_t indexId, const Entry& entry) -> std::expected<void, db::Error>
@@ -532,13 +491,10 @@ auto Database::loadEntriesFromIndex(const std::int64_t indexId) -> std::expected
     });
   }
 
-  if (rc != SQLITE_DONE)
-  {
-    finalizeStatement(m_stmtEntryLoad);
-    return std::unexpected(makeError(rc));
-  }
-
   finalizeStatement(m_stmtEntryLoad);
+  if (rc != SQLITE_DONE)
+    return std::unexpected(makeError(rc));
+
   return entries;
 }
 

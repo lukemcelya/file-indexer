@@ -46,6 +46,8 @@ private:
   [[nodiscard]] bool isIndexed(const fs::path& path) const;
   [[nodiscard]] bool isIndexed(std::int64_t id) const;
 
+  std::unexpected<app::Error> databaseFailure(const std::string& message, db::Error error, bool rollbackNeeded);
+
   static bool isEntryChanged(const Entry& oldEntry, const Entry& newEntry);
   static std::expected<fs::path, app::Error> normalizePath(const fs::path& path);
 };

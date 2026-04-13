@@ -43,13 +43,11 @@ public:
   static std::expected<Database, db::Error> open(const fs::path& dbPath);
 
   // Scan and rescan functions
-  std::expected<void, db::Error> finishIndex();
-  std::expected<void, db::Error> beginRescan();
-  std::expected<void, db::Error> cancelRescan();
-  std::expected<void, db::Error> finishRescan();
+  std::expected<void, db::Error> prepareRescan();
+  bool finalizeRescan();
   std::expected<std::int64_t, db::Error> insertIndex(const Index& index);
-  std::expected<void, db::Error> beginEntryInsert();
-  std::expected<void, db::Error> finishEntryInsert();
+  std::expected<void, db::Error> prepareEntryInsert();
+  void finalizeEntryInsert();
   std::expected<void, db::Error> insertEntry(std::int64_t indexId, const Entry& entry);
   std::expected<void, db::Error> deleteEntry(std::int64_t indexId, const Entry& entry);
   std::expected<void, db::Error> updateEntry(std::int64_t indexId, const Entry& entry);
@@ -70,15 +68,16 @@ public:
   std::expected<std::vector<Index>, db::Error> loadIndexes();
   std::expected<std::unordered_map<std::string, Entry>, db::Error> loadEntriesFromIndex(std::int64_t indexId);
 
+  std::expected<void, db::Error> beginTransaction();
+  std::expected<void, db::Error> rollback();
+  std::expected<void, db::Error> commit();
+
 private:
   std::expected<void, db::Error> initializeSchema();
 
   // Transaction handling
   std::expected<void, db::Error> exec(std::string_view query);
   std::expected<void, db::Error> prepare(sqlite3_stmt*& stmt, const char* sql);
-  std::expected<void, db::Error> beginTransaction();
-  std::expected<void, db::Error> rollback();
-  std::expected<void, db::Error> commit();
 
   // Getter for index path on id
   std::expected<fs::path, db::Error> indexPath(std::int64_t indexId);

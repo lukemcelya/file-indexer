@@ -37,12 +37,14 @@ auto IndexApp::createIndex(const fs::path& path) -> std::expected<std::int64_t, 
   const auto indexPath = normalizePath(path);
   if (!indexPath)
     return std::unexpected(indexPath.error());
+
   if (!fs::is_directory(*indexPath))
     return std::unexpected(
       app::Error{
         app::Error::Type::InvalidPath,
         "Invalid path (path is not a directory)",
       });
+
   if (isIndexed(*indexPath))
     return std::unexpected(
       app::Error{
@@ -50,57 +52,34 @@ auto IndexApp::createIndex(const fs::path& path) -> std::expected<std::int64_t, 
         "Directory already indexed"
       });
 
+  if (const auto res = m_database.beginTransaction(); !res)
+    return databaseFailure("Begin transaction failed", res.error(), false);
+
   Index index { *indexPath };
   auto indexId = m_database.insertIndex(index);
+
   if (!indexId)
-  {
-    return std::unexpected(
-      app::Error{
-        app::Error::Type::Database,
-        "Index insert failed",
-        indexId.error()
-      });
-  }
+    return databaseFailure("Index insert failed", indexId.error(), true);
+
   index.setId(*indexId);
 
-  if (const auto finish = m_database.finishIndex(); !finish)
-    return std::unexpected(
-      app::Error{
-        app::Error::Type::Database,
-        "Finalize index failed",
-        finish.error()
-      });
+  if (const auto begin = m_database.prepareEntryInsert(); !begin)
+    return databaseFailure("Prepare entry insert failed", begin.error(), true);
 
-  if (const auto begin = m_database.beginEntryInsert(); !begin)
-    return std::unexpected(
-      app::Error{
-        app::Error::Type::Database,
-        "Initialize entry insert failed",
-        begin.error()
-      });
-
-  auto entryResult = scanner::scan(path, [&](const Entry& entry)
+  auto entryResult = scanner::scan(*indexPath, [&](const Entry& entry)
   {
     return m_database.insertEntry(index.id(), entry);
   }); // Insert entry as callback
 
   if (!entryResult)
   {
-    return std::unexpected(
-      app::Error{
-        app::Error::Type::Database,
-        "Entry insert failed",
-        entryResult.error()
-      });
+    m_database.finalizeEntryInsert();
+    return databaseFailure("Entry insert failed", entryResult.error(), true);
   }
 
-  if (const auto finish = m_database.finishEntryInsert(); !finish)
-    return std::unexpected(
-      app::Error{
-        app::Error::Type::Database,
-        "Finalize entry insert failed",
-        finish.error()
-      });
+  m_database.finalizeEntryInsert();
+  if (const auto res = m_database.commit(); !res)
+    return databaseFailure("Commit failed", res.error(), true);
 
   m_indexStore.push_back(std::move(index));
   return *indexId;
@@ -131,33 +110,29 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, a
         "Directory not indexed"
       });
 
-  auto result = m_database.loadEntriesFromIndex(currentIndex->id());
+  const auto indexId = currentIndex->id();
+
+  auto result = m_database.loadEntriesFromIndex(indexId);
   if (!result)
-    return std::unexpected(
-      app::Error{
-        app::Error::Type::Database,
-        "Entry loading failed",
-        result.error()
-      });
+    return databaseFailure("Entry loading failed", result.error(), false);
 
   auto& existing = result.value();
   RescanStats stats{};
 
-  if (const auto rescanRes = m_database.beginRescan(); !rescanRes)
-    return std::unexpected(
-      app::Error{
-        app::Error::Type::Database,
-        "Rescan failed",
-        rescanRes.error()
-      });
+  if (const auto res = m_database.beginTransaction(); !res)
+    return databaseFailure("Begin transaction failed", res.error(), false);
 
-  auto scanResult = scanner::scan(path, [&](const Entry& entry) -> std::expected<void, db::Error>
+  if (const auto rescanRes = m_database.prepareRescan(); !rescanRes)
+    return databaseFailure("Prepare rescan failed", rescanRes.error(), true);
+
+
+  auto scanResult = scanner::scan(*indexPath, [&](const Entry& entry) -> std::expected<void, db::Error>
   {
     auto it = existing.find(entry.path.string());
 
     if (it == existing.end())
     {
-      if (auto r = m_database.insertEntry(currentIndex->id(), entry); !r)
+      if (auto r = m_database.insertEntry(indexId, entry); !r)
         return std::unexpected(r.error());
 
       ++stats.added;
@@ -166,7 +141,7 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, a
 
     if (isEntryChanged(it->second, entry))
     {
-      if (auto r = m_database.updateEntry(currentIndex->id(), entry); !r)
+      if (auto r = m_database.updateEntry(indexId, entry); !r)
         return std::unexpected(r.error());
 
       ++stats.modified;
@@ -182,46 +157,23 @@ auto IndexApp::rescanIndex(const fs::path& path) -> std::expected<RescanStats, a
 
   if (!scanResult)
   {
-    db::Error error{scanResult.error()};
-
-    if (const auto cancelRes = m_database.cancelRescan(); !cancelRes)
-      error.message += " | Cancel error: " + cancelRes.error().message;
-
-    return std::unexpected(
-      app::Error{
-        app::Error::Type::Database,
-        "Rescan failed",
-        error
-      });
+    m_database.finalizeRescan();
+    return databaseFailure("Rescan failed", scanResult.error(), true);
   }
 
   for (const auto &oldEntry: existing | std::views::values)
   {
-    if (auto deleteRes = m_database.deleteEntry(currentIndex->id(), oldEntry); !deleteRes)
+    if (auto deleteRes = m_database.deleteEntry(indexId, oldEntry); !deleteRes)
     {
-      db::Error error{deleteRes.error()};
-
-      if (const auto cancelRes = m_database.cancelRescan(); !cancelRes)
-        error.message += " | Cancel error: " + cancelRes.error().message;
-
-      return std::unexpected(
-        app::Error{
-          app::Error::Type::Database,
-          "Delete failed",
-          error
-        });
+      m_database.finalizeRescan();
+      return databaseFailure("Delete failed", deleteRes.error(), true);
     }
-
     ++stats.deleted;
   }
 
-  if (const auto finish = m_database.finishRescan(); !finish)
-    return std::unexpected(
-      app::Error{
-        app::Error::Type::Database,
-        "Rescan finalize failed",
-        finish.error()
-      });
+  m_database.finalizeRescan();
+  if (const auto commit = m_database.commit(); !commit)
+    return databaseFailure("Commit failed", commit.error(), true);
 
   return stats;
 }
@@ -330,9 +282,25 @@ bool IndexApp::isIndexed(const std::int64_t id) const
   return false;
 }
 
+auto IndexApp::databaseFailure(const std::string& message, db::Error error, bool rollbackNeeded) -> std::unexpected<app::Error>
+{
+  if (rollbackNeeded)
+  {
+    if (const auto rb = m_database.rollback(); !rb)
+      error.message += " | Rollback also failed: " + rb.error().message;
+  }
+
+  return std::unexpected(
+    app::Error{
+      app::Error::Type::Database,
+      message,
+      std::move(error)
+    });
+}
+
 bool IndexApp::isEntryChanged(const Entry& oldEntry, const Entry& newEntry)
 {
-  return oldEntry.size != newEntry.size;
+  return oldEntry.size != newEntry.size || oldEntry.lastWrittenAt != newEntry.lastWrittenAt;
 }
 
 auto IndexApp::normalizePath(const fs::path& path) -> std::expected<fs::path, app::Error>
