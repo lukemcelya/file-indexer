@@ -98,7 +98,7 @@ auto Database::prepareRescan() -> std::expected<void, db::Error>
   return {};
 }
 
-bool Database::finalizeRescan()
+void Database::finalizeRescan()
 {
   finalizeStatement(m_stmtEntryInsert);
   finalizeStatement(m_stmtEntryUpdate);

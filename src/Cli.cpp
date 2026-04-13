@@ -67,7 +67,7 @@ void Cli::repl()
     if (!std::getline(std::cin, input))
       break;
 
-    if (input == "quit" || input == "exit") // Maybe add more exit commands
+    if (input == "quit" || input == "exit" || input == "q") // Maybe add more exit commands
       break;
 
     std::vector<std::string> args = tokenize(input);

@@ -44,7 +44,7 @@ public:
 
   // Scan and rescan functions
   std::expected<void, db::Error> prepareRescan();
-  bool finalizeRescan();
+  void finalizeRescan();
   std::expected<std::int64_t, db::Error> insertIndex(const Index& index);
   std::expected<void, db::Error> prepareEntryInsert();
   void finalizeEntryInsert();
