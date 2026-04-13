@@ -69,7 +69,7 @@ auto IndexApp::createIndex(const fs::path& path) -> std::expected<std::int64_t, 
   auto entryResult = scanner::scan(*indexPath, [&](const Entry& entry)
   {
     return m_database.insertEntry(index.id(), entry);
-  }); // Insert entry as callback
+  });
 
   if (!entryResult)
   {
@@ -263,26 +263,21 @@ auto IndexApp::indexStats(const std::int64_t id) -> std::expected<db::IndexStats
 
 bool IndexApp::isIndexed(const fs::path& path) const
 {
-  // True if already exists in m_indexStore
-  if (std::ranges::any_of(m_indexStore, [&](const Index& index)
+  return std::ranges::any_of(m_indexStore, [&](const Index& index)
   {
     return index.root() == path;
-  })) { return true; }
-
-  return false;
+  });
 }
 
 bool IndexApp::isIndexed(const std::int64_t id) const
 {
-  if (std::ranges::any_of(m_indexStore, [&](const Index& index)
+  return std::ranges::any_of(m_indexStore, [&](const Index& index)
   {
     return index.id() == id;
-  })) { return true; }
-
-  return false;
+  });
 }
 
-auto IndexApp::databaseFailure(const std::string& message, db::Error error, bool rollbackNeeded) -> std::unexpected<app::Error>
+auto IndexApp::databaseFailure(const std::string& message, db::Error error, const bool rollbackNeeded) -> std::unexpected<app::Error>
 {
   if (rollbackNeeded)
   {
