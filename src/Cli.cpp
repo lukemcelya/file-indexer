@@ -51,8 +51,6 @@ int Cli::handleCommand(const std::vector<std::string>& args, const bool isRepl)
     return handleDuplicate(args);
   if (command == "stats")
     return handleStats(args);
-  if (command == "compare")
-    return handleCompare(args);
   if (command == "show")
     return handleShow(args);
 
@@ -164,11 +162,6 @@ int Cli::handleStats(const std::vector<std::string>& args)
   return 0;
 }
 
-int Cli::handleCompare(const std::vector<std::string>& args)
-{
-  return 0;
-}
-
 int Cli::handleShow(const std::vector<std::string>& args) const
 {
   const auto indexId = parseIndexFlag(args);
@@ -210,8 +203,7 @@ void Cli::printUsage()
             << "    show                    <directory>\n"
             << "    find                    <query>\n"
             << "    duplicates --index      <id>\n"
-            << "    stats\n"
-            << "    compare                 <scan1> <scan2>\n";
+            << "    stats\n";
 }
 
 void Cli::printFindResults(const std::vector<db::FindResult>& findResults)
