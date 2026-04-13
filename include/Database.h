@@ -84,7 +84,7 @@ private:
   std::expected<fs::path, db::Error> indexPath(std::int64_t indexId);
 
   // Private prepare functions (bind input values)
-  std::expected<void, db::Error> prepareEntrySearch(const std::string& query, const std::optional<std::int64_t> indexId = std::nullopt);
+  std::expected<void, db::Error> prepareEntrySearch(const std::string& query, std::optional<std::int64_t> indexId = std::nullopt);
   std::expected<void, db::Error> prepareIndexShow(std::int64_t indexId);
   std::expected<void, db::Error> prepareDuplicateSearch(std::int64_t indexId);
   std::expected<void, db::Error> prepareIndexPath(std::int64_t indexId);
@@ -94,7 +94,7 @@ private:
   std::expected<void, db::Error> bindInt64(sqlite3_stmt* stmt, int index, std::int64_t value) const;
   std::expected<void, db::Error> bindText(sqlite3_stmt* stmt, int index, std::string_view value) const;
 
-  [[nodiscard]] db::Error makeError(const int rc) const;
+  [[nodiscard]] db::Error makeError(int rc) const;
 
   // Static helpers
   static std::int64_t toUnixTime(const fs::file_time_type& time);
