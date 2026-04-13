@@ -320,7 +320,7 @@ std::string Cli::formatTimestamp(const std::int64_t timestamp)
 std::string Cli::formatBytes(const std::uint64_t bytes)
 {
   constexpr const char* units[] = {"B", "KB", "MB", "GB", "TB"};
-  double size = static_cast<double>(bytes);
+  auto size = static_cast<double>(bytes);
 
   // Divide by 4 with multiples of 1024 -> convert to unit with index
   int unitIndex = 0;
