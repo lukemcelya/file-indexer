@@ -290,7 +290,7 @@ auto IndexApp::indexStats(const std::int64_t id) -> std::expected<db::IndexStats
   {
     return std::unexpected(
       app::Error{
-        app::Error::Type::Database,
+        app::Error::Type::NotIndexed,
         "Directory not indexed"
       });
   }
