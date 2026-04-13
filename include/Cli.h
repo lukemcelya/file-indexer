@@ -36,5 +36,5 @@ private:
   static void printError(const app::Error& error);
   static std::optional<std::int64_t> parseIndexFlag(const std::vector<std::string>& args);
   static std::string formatTimestamp(std::int64_t timestamp);
-  static std::string formatBytes(std::uintmax_t bytes);
+  static std::string formatBytes(std::uint64_t bytes);
 };
