@@ -198,12 +198,12 @@ std::vector<std::string> Cli::tokenize(const std::string& input)
 void Cli::printUsage()
 {
   std::cout << "Usage:\n"
-            << "    index                   <directory>\n"
-            << "    rescan                  <directory>\n"
-            << "    show                    <directory>\n"
-            << "    find                    <query>\n"
-            << "    duplicates --index      <id>\n"
-            << "    stats\n";
+            << "    index         <directory>\n"
+            << "    rescan        <directory>\n"
+            << "    find          <query>\n"
+            << "    show          --index <id>\n"
+            << "    duplicates    --index <id>\n"
+            << "    stats         --index <id>\n";
 }
 
 void Cli::printFindResults(const std::vector<db::FindResult>& findResults)
