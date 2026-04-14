@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Entry.h"
+#include "../model/Entry.h"
 
 #include <filesystem>
 #include <string>

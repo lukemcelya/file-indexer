@@ -1,7 +1,5 @@
 #include "Cli.h"
 
-#include <charconv>
-
 #include "IndexApp.h"
 #include "Database.h"
 #include "AppResults.h"
@@ -11,6 +9,7 @@
 #include <string>
 #include <sstream>
 #include <time.h>
+#include <charconv>
 
 Cli::Cli(IndexApp& indexApp)
   : m_indexApp { indexApp }
