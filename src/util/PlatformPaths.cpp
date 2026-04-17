@@ -11,7 +11,7 @@
   #include <mach-o/dyld.h>
 #endif
 
-namespace platform
+namespace util
 {
   fs::path executablePath()
   {

@@ -2,7 +2,7 @@
 
 #include <filesystem>
 
-namespace platform
+namespace util
 {
   namespace fs = std::filesystem;
 
