@@ -26,6 +26,7 @@ private:
   sqlite3_stmt* m_stmtEntryDelete{};
   sqlite3_stmt* m_stmtEntryUpdate{};
   sqlite3_stmt* m_stmtEntrySearch{};
+  sqlite3_stmt* m_stmtEntryCount{};
   sqlite3_stmt* m_stmtEntryLoad{};
   sqlite3_stmt* m_stmtDuplicateSearch{};
 
@@ -67,6 +68,7 @@ public:
   // Index and Entry loading
   std::expected<std::vector<Index>, db::Error> loadIndexes();
   std::expected<std::unordered_map<std::string, Entry>, db::Error> loadEntriesFromIndex(std::int64_t indexId);
+  std::expected<std::int64_t, db::Error> getEntryCount(std::int64_t indexId);
 
   std::expected<void, db::Error> beginTransaction();
   std::expected<void, db::Error> rollback();

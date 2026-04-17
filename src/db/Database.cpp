@@ -453,7 +453,15 @@ auto Database::loadIndexes() -> std::expected<std::vector<Index>, db::Error>
 
 auto Database::loadEntriesFromIndex(const std::int64_t indexId) -> std::expected<std::unordered_map<std::string, Entry>, db::Error>
 {
+  const auto count = getEntryCount(indexId);
+  if (!count)
+  {
+    return std::unexpected(count.error());
+  }
+
   std::unordered_map<std::string, Entry> entries{};
+  entries.reserve(*count);
+
   const auto prep = prepare(m_stmtEntryLoad, "SELECT relative_path, name, extension, is_directory, size_bytes, last_written_at FROM entries WHERE index_id = ?;");
   if (!prep)
     return std::unexpected(prep.error());
@@ -496,6 +504,33 @@ auto Database::loadEntriesFromIndex(const std::int64_t indexId) -> std::expected
     return std::unexpected(makeError(rc));
 
   return entries;
+}
+
+auto Database::getEntryCount(const std::int64_t indexId) -> std::expected<std::int64_t, db::Error>
+{
+  const std::string query = "SELECT COUNT(*) FROM entries WHERE index_id = ?;";
+  if (const auto prep = prepare(m_stmtEntryCount, query.c_str()); !prep)
+    return std::unexpected(prep.error());
+
+  if (const auto res = bindInt64(m_stmtEntryCount, 1, indexId); !res)
+    return std::unexpected(res.error());
+
+  const auto step = stepRow(m_stmtEntryCount);
+  if (!step)
+  {
+    finalizeStatement(m_stmtEntryCount);
+    return std::unexpected(step.error());
+  }
+  if (!*step)
+  {
+    finalizeStatement(m_stmtEntryCount);
+    return std::unexpected(db::Error{db::ERR_NOT_FOUND, "Index not found"});
+  }
+
+  std::int64_t count = sqlite3_column_int64(m_stmtEntryCount, 0);
+
+  finalizeStatement(m_stmtEntryCount);
+  return count;
 }
 
 auto Database::indexPath(const std::int64_t indexId) -> std::expected<fs::path, db::Error>
