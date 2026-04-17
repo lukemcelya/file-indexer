@@ -10,6 +10,8 @@
 #include <expected>
 #include <optional>
 #include <unordered_map>
+#include <filesystem>
+#include <cstdint>
 
 namespace fs = std::filesystem;
 
@@ -97,9 +99,6 @@ private:
 
   [[nodiscard]] db::Error makeError(int rc) const;
 
-  // Static helpers
-  static std::int64_t toUnixTime(const fs::file_time_type& time);
-  static fs::file_time_type toFileTime(std::int64_t time);
   static std::expected<std::int64_t, db::Error> toSqliteFileSize(std::uintmax_t size);
 
   // Sqlite3_stmt* handling

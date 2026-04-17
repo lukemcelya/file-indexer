@@ -3,7 +3,8 @@
 #include "Cli.h"
 #include "Scanner.h"
 #include "Duplicates.h"
-#include "AppResults.h"
+#include "AppResults.h"'
+#include "FileTime.h"
 
 #include <filesystem>
 #include <string>
@@ -295,7 +296,8 @@ auto IndexApp::databaseFailure(const std::string& message, db::Error error, cons
 
 bool IndexApp::isEntryChanged(const Entry& oldEntry, const Entry& newEntry)
 {
-  return oldEntry.size != newEntry.size || oldEntry.lastWrittenAt != newEntry.lastWrittenAt;
+  return oldEntry.size != newEntry.size ||
+    util::toUnixTime(oldEntry.lastWrittenAt) != util::toUnixTime(newEntry.lastWrittenAt);
 }
 
 auto IndexApp::normalizePath(const fs::path& path) -> std::expected<fs::path, app::Error>

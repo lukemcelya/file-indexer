@@ -28,6 +28,7 @@ set(MODEL_SOURCES
 
 set(UTIL_SOURCES
     src/util/PlatformPaths.cpp
+    src/util/FileTime.cpp
 )
 
 # Core library

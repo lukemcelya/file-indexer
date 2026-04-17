@@ -1,6 +1,7 @@
 #include "Database.h"
 #include "Index.h"
 #include "Entry.h"
+#include "FileTime.h"
 
 #include <sqlite3.h>
 #include <filesystem>
@@ -160,7 +161,7 @@ auto Database::insertEntry(const std::int64_t indexId, const Entry& entry) -> st
     return res;
   if (const auto res = bindInt64(m_stmtEntryInsert, 6, static_cast<std::int64_t>(entry.size)); !res)
     return res;
-  if (const auto res = bindInt64(m_stmtEntryInsert, 7, toUnixTime(entry.lastWrittenAt)); !res)
+  if (const auto res = bindInt64(m_stmtEntryInsert, 7, util::toUnixTime(entry.lastWrittenAt)); !res)
     return res;
 
   if (const auto res = stepDone(m_stmtEntryInsert); !res)
@@ -199,7 +200,7 @@ auto Database::updateEntry(const std::int64_t indexId, const Entry& entry) -> st
 
   if (const auto res = bindInt64(m_stmtEntryUpdate, 1, *fileSize); !res)
     return res;
-  if (const auto res = bindInt64(m_stmtEntryUpdate, 2, toUnixTime(entry.lastWrittenAt)); !res)
+  if (const auto res = bindInt64(m_stmtEntryUpdate, 2, util::toUnixTime(entry.lastWrittenAt)); !res)
     return res;
   if (const auto res = bindInt64(m_stmtEntryUpdate, 3, indexId); !res)
     return res;
@@ -487,7 +488,7 @@ auto Database::loadEntriesFromIndex(const std::int64_t indexId) -> std::expected
 
     const std::uintmax_t size = sqlite3_column_int64(m_stmtEntryLoad, 4);
 
-    const fs::file_time_type lastWritten = toFileTime(sqlite3_column_int64(m_stmtEntryLoad, 5));
+    const fs::file_time_type lastWritten = util::toFileTime(sqlite3_column_int64(m_stmtEntryLoad, 5));
 
     entries.try_emplace(pathKey, Entry{
       path,
@@ -688,28 +689,6 @@ auto Database::bindText(sqlite3_stmt* stmt, const int index, const std::string_v
 db::Error Database::makeError(const int rc) const
 {
   return db::Error{rc, sqlite3_errmsg(m_db)};
-}
-
-// Converting to int64_t Unix Time from fs::file_time_type
-std::int64_t Database::toUnixTime(const fs::file_time_type& time)
-{
-  const auto sysNow = std::chrono::system_clock::now();
-  const auto fileNow = fs::file_time_type::clock::now();
-
-  const auto sysTime = sysNow + (time - fileNow);
-
-  return std::chrono::duration_cast<std::chrono::seconds>(sysTime.time_since_epoch()).count();
-}
-
-// Convert back to file_time_type from Unix Time
-fs::file_time_type Database::toFileTime(const std::int64_t time)
-{
-  const auto sysNow = std::chrono::system_clock::now();
-  const auto fileNow = fs::file_time_type::clock::now();
-
-  const auto sysTime = std::chrono::system_clock::time_point{std::chrono::seconds{time}};
-
-  return fileNow + (sysTime - sysNow);
 }
 
 auto Database::toSqliteFileSize(const std::uintmax_t size) -> std::expected<std::int64_t, db::Error>

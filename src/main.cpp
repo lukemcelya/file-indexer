@@ -7,7 +7,7 @@
 
 int main(const int argc, const char* argv[])
 {
-  auto exeDir = platform::executableDir();
+  auto exeDir = util::executableDir();
   auto dbPath = exeDir / "data" / "file-index.db";
 
   auto dbResult = Database::open(dbPath);
